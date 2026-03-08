@@ -32,7 +32,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -203,45 +202,38 @@ function VehicleCard({
   );
 }
 
-function ServiceCard({ item }: { item: ServiceRecord }) {
+function ServiceTable({ records }: { records: ServiceRecord[] }) {
   return (
-    <Card className="rounded-3xl border-border/80 bg-card/50 p-4 shadow-sm backdrop-blur md:p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="rg-title text-base font-semibold">{item.title}</div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{item.date}</span>
-            <span className="text-muted-foreground/40">•</span>
-            <span>{km(item.odometerKm)}</span>
-            <span className="text-muted-foreground/40">•</span>
-            <span>{item.workshop}</span>
-          </div>
-        </div>
-
-        <Badge
-          className={
-            item.amount === 0
-              ? "bg-secondary/60 text-foreground"
-              : "bg-primary text-primary-foreground"
-          }
-        >
-          {item.amount === 0 ? "Free" : formatMoney(item.amount)}
-        </Badge>
-      </div>
-
-      {item.items.length > 0 && (
-        <div className="mt-4 grid gap-2">
-          {item.items.map((text, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 rounded-2xl border border-border/70 bg-background/20 px-3 py-2"
-            >
-              <div className="text-xs font-medium text-foreground">{text}</div>
-            </div>
+    <div className="overflow-x-auto rounded-2xl border border-border/70">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-border/70 bg-background/30">
+            <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Date</th>
+            <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Service</th>
+            <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Odometer</th>
+            <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Workshop</th>
+            <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Items</th>
+            <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((r) => (
+            <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-background/20">
+              <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">{r.date}</td>
+              <td className="px-4 py-2.5 text-xs font-semibold text-foreground">{r.title}</td>
+              <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">{km(r.odometerKm)}</td>
+              <td className="px-4 py-2.5 text-xs text-muted-foreground">{r.workshop}</td>
+              <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                {r.items.length > 0 ? r.items.join(", ") : "—"}
+              </td>
+              <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-semibold text-foreground">
+                {r.amount === 0 ? "Free" : formatMoney(r.amount)}
+              </td>
+            </tr>
           ))}
-        </div>
-      )}
-    </Card>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -614,11 +606,13 @@ function expiryStatus(expiryDate: string): { label: string; color: string; urgen
   return { label: format(expiry, "dd MMM yyyy"), color: "text-muted-foreground", urgent: false };
 }
 
-function DocumentCard({
+function DocumentRow({
   doc,
+  status,
   vehicleId,
 }: {
   doc: VehicleDocument;
+  status: { label: string; color: string; urgent: boolean };
   vehicleId: string;
 }) {
   const queryClient = useQueryClient();
@@ -627,47 +621,21 @@ function DocumentCard({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents", vehicleId] }),
   });
 
-  const status = expiryStatus(doc.expiryDate);
-  const isExpired = new Date(doc.expiryDate) < new Date();
-
   return (
-    <div className={
-      "flex items-center gap-3 rounded-2xl border p-3 " +
-      (isExpired
-        ? "border-destructive/40 bg-destructive/5"
-        : "border-border/70 bg-background/20")
-    }>
-      <div className="grid size-9 shrink-0 place-items-center rounded-xl border border-border/70 bg-background/30">
-        {doc.type === "insurance" ? (
-          <ShieldCheck className="size-4 text-primary" strokeWidth={2.2} />
-        ) : (
-          <FileText className="size-4 text-primary" strokeWidth={2.2} />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <div className="text-xs font-semibold text-foreground">
-            {docTypeLabel(doc.type)}
-          </div>
-          {doc.label && (
-            <div className="truncate text-xs text-muted-foreground">
-              — {doc.label}
-            </div>
-          )}
-        </div>
-        <div className={`text-xs font-medium ${status.color}`}>
-          {status.urgent && isExpired && <AlertTriangle className="mr-1 inline size-3" />}
-          {status.label}
-        </div>
-      </div>
-      <div className="flex items-center gap-1">
-        {doc.fileUrl && (
-          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-            <Button variant="ghost" size="icon" className="size-7">
-              <FileText className="size-3.5" />
-            </Button>
+    <tr className="border-b border-border/50 last:border-0 hover:bg-background/20">
+      <td className="px-4 py-2.5 text-xs font-semibold text-foreground">{docTypeLabel(doc.type)}</td>
+      <td className="px-4 py-2.5 text-xs text-muted-foreground">{doc.label || "—"}</td>
+      <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">{doc.expiryDate}</td>
+      <td className={`whitespace-nowrap px-4 py-2.5 text-xs font-medium ${status.color}`}>{status.label}</td>
+      <td className="px-4 py-2.5 text-xs">
+        {doc.fileUrl ? (
+          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            {doc.fileName || "View"}
           </a>
-        )}
+        ) : "—"}
+      </td>
+      <td className="px-4 py-2.5 text-xs text-muted-foreground">{doc.notes || "—"}</td>
+      <td className="px-4 py-2.5">
         <Button
           variant="ghost"
           size="icon"
@@ -678,8 +646,8 @@ function DocumentCard({
         >
           <Trash2 className="size-3.5" />
         </Button>
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1207,7 +1175,8 @@ export default function Garage() {
                 </Button>
               </div>
             ) : (
-              <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="mt-6 space-y-6">
+                {/* Vehicle list — horizontal scrollable strip */}
                 <section>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -1235,7 +1204,7 @@ export default function Garage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {vehicles.map((v) => (
                       <VehicleCard
                         key={v.id}
@@ -1247,275 +1216,289 @@ export default function Garage() {
                   </div>
                 </section>
 
+                {/* Vehicle detail — full-width below */}
                 {activeVehicle && (
-                  <aside className="lg:sticky lg:top-6 lg:self-start">
-                    <motion.div
-                      key={activeVehicle.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25 }}
-                      className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-5 shadow-md backdrop-blur md:p-7"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-muted-foreground">
-                            Selected vehicle
-                          </div>
-                          <div className="mt-1 rg-title text-xl font-semibold">
-                            {activeVehicle.nickname}
-                          </div>
-                          <div className="mt-1 text-sm text-muted-foreground">
-                            {activeVehicle.model}
-                          </div>
+                  <motion.section
+                    key={activeVehicle.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-5 shadow-md backdrop-blur md:p-7"
+                  >
+                    {/* Header row with stats */}
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-muted-foreground">
+                          Selected vehicle
                         </div>
+                        <div className="mt-1 rg-title text-xl font-semibold">
+                          {activeVehicle.nickname}
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          {activeVehicle.model}
+                        </div>
+                      </div>
 
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-primary text-primary-foreground">
+                          <CheckCircle2 className="mr-1.5 size-4" />
+                          {activeVehicle.health}%
+                        </Badge>
+                        {activeVehicle.userId === user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 hover:bg-primary/10"
+                            onClick={() => setShowShare(true)}
+                          >
+                            <Share2 className="size-4" />
+                          </Button>
+                        )}
+                        {activeVehicle.userId === user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm(`Delete "${activeVehicle.nickname}"?`)) {
+                                deleteMutation.mutate(activeVehicle.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
                         <div className="flex items-center gap-2">
-                          <Badge className="bg-primary text-primary-foreground">
-                            <CheckCircle2 className="mr-1.5 size-4" />
-                            {activeVehicle.health}%
-                          </Badge>
-                          {activeVehicle.userId === user?.id && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 hover:bg-primary/10"
-                              onClick={() => setShowShare(true)}
-                            >
-                              <Share2 className="size-4" />
-                            </Button>
-                          )}
-                          {activeVehicle.userId === user?.id && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-destructive hover:bg-destructive/10"
-                              onClick={() => {
-                                if (confirm(`Delete "${activeVehicle.nickname}"?`)) {
-                                  deleteMutation.mutate(activeVehicle.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          )}
+                          <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                            <IndianRupee className="size-3.5 text-primary" strokeWidth={2.2} />
+                          </div>
+                          <div className="text-xs font-medium text-muted-foreground">
+                            Total cost
+                          </div>
+                        </div>
+                        <div className="mt-2 text-lg font-semibold text-foreground">
+                          {serviceRecords.length > 0
+                            ? formatMoney(serviceRecords.reduce((sum, r) => sum + r.amount, 0))
+                            : "—"}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {serviceRecords.length} {serviceRecords.length === 1 ? "entry" : "entries"}
                         </div>
                       </div>
 
-                      <div className="mt-5 grid gap-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                            <div className="flex items-center gap-2">
-                              <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
-                                <IndianRupee className="size-3.5 text-primary" strokeWidth={2.2} />
-                              </div>
-                              <div className="text-xs font-medium text-muted-foreground">
-                                Total cost
-                              </div>
-                            </div>
-                            <div className="mt-2 text-lg font-semibold text-foreground">
-                              {serviceRecords.length > 0
-                                ? formatMoney(serviceRecords.reduce((sum, r) => sum + r.amount, 0))
-                                : "—"}
-                            </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">
-                              {serviceRecords.length} {serviceRecords.length === 1 ? "entry" : "entries"}
-                            </div>
+                      <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                            <CalendarClock className="size-3.5 text-primary" strokeWidth={2.2} />
                           </div>
-
-                          <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                            <div className="flex items-center gap-2">
-                              <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
-                                <CalendarClock className="size-3.5 text-primary" strokeWidth={2.2} />
-                              </div>
-                              <div className="text-xs font-medium text-muted-foreground">
-                                Next service
-                              </div>
-                            </div>
-                            <div className="mt-2 text-lg font-semibold text-foreground">
-                              {km(serviceProgress(activeVehicle).remaining)}
-                            </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">
-                              at {km(activeVehicle.nextServiceKm)}
-                            </div>
+                          <div className="text-xs font-medium text-muted-foreground">
+                            Next service
                           </div>
                         </div>
-
-                        {documents.length > 0 && (() => {
-                          const nearestDoc = documents.reduce((a, b) =>
-                            new Date(a.expiryDate) < new Date(b.expiryDate) ? a : b
-                          );
-                          const status = expiryStatus(nearestDoc.expiryDate);
-                          return (
-                            <div className={
-                              "rounded-3xl border p-3 flex items-center gap-3 " +
-                              (status.urgent
-                                ? "border-amber-500/40 bg-amber-500/5"
-                                : "border-border/70 bg-background/20")
-                            }>
-                              <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-border/70 bg-background/30">
-                                <ShieldCheck className="size-3.5 text-primary" strokeWidth={2.2} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-xs font-medium text-muted-foreground">
-                                  Nearest expiry
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-semibold text-foreground">
-                                    {docTypeLabel(nearestDoc.type)}
-                                  </span>
-                                  <span className={`text-xs font-medium ${status.color}`}>
-                                    {status.label}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-medium text-muted-foreground">
-                              Service interval
-                            </div>
-                            <div className="text-xs font-semibold text-foreground">
-                              Next at {km(activeVehicle.nextServiceKm)}
-                            </div>
-                          </div>
-                          <div className="mt-2">
-                            <Progress
-                              value={serviceProgress(activeVehicle).pct}
-                              className="h-2.5 bg-secondary/60"
-                            />
-                          </div>
-                          <div className="mt-3 flex items-center justify-between text-xs">
-                            <div className="text-muted-foreground">
-                              Last: {km(activeVehicle.lastServiceKm)}
-                            </div>
-                            <div className="font-semibold text-foreground">
-                              {km(serviceProgress(activeVehicle).remaining)} left
-                            </div>
-                          </div>
+                        <div className="mt-2 text-lg font-semibold text-foreground">
+                          {km(serviceProgress(activeVehicle).remaining)}
                         </div>
-
-                        <Tabs defaultValue={defaultTab} className="w-full">
-                          <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-secondary/60">
-                            <TabsTrigger value="history" className="rounded-2xl">
-                              History
-                            </TabsTrigger>
-                            <TabsTrigger value="documents" className="rounded-2xl">
-                              Docs
-                            </TabsTrigger>
-                            <TabsTrigger value="build" className="rounded-2xl">
-                              Build
-                            </TabsTrigger>
-                          </TabsList>
-
-                          <TabsContent value="history" className="mt-4 space-y-3">
-                            {serviceRecords.length === 0 ? (
-                              <Card className="rounded-3xl border-border/70 bg-background/20 p-4">
-                                <div className="text-sm font-semibold">
-                                  No maintenance logs yet
-                                </div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                  Add your first maintenance entry to start building
-                                  a trustworthy history.
-                                </div>
-                                <Button
-                                  className="mt-3 w-full rounded-2xl bg-primary text-primary-foreground"
-                                  onClick={() => setShowAddMaintenance(true)}
-                                >
-                                  <Wrench className="mr-2 size-4" />
-                                  Add maintenance
-                                </Button>
-                              </Card>
-                            ) : (
-                              <>
-                                {serviceRecords.map((r) => (
-                                  <ServiceCard key={r.id} item={r} />
-                                ))}
-                                <Button
-                                  variant="secondary"
-                                  className="w-full rounded-2xl bg-secondary/60"
-                                  onClick={() => setShowAddMaintenance(true)}
-                                >
-                                  <Plus className="mr-2 size-4" />
-                                  Add maintenance
-                                </Button>
-                              </>
-                            )}
-                          </TabsContent>
-
-                          <TabsContent value="documents" className="mt-4 space-y-3">
-                            {documents.length === 0 ? (
-                              <Card className="rounded-3xl border-border/70 bg-background/20 p-4">
-                                <div className="text-sm font-semibold">
-                                  No documents yet
-                                </div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                  Track insurance and PUC expiry dates, optionally attach photos or PDFs.
-                                </div>
-                                <Button
-                                  className="mt-3 w-full rounded-2xl bg-primary text-primary-foreground"
-                                  onClick={() => setShowAddDocument(true)}
-                                >
-                                  <FileText className="mr-2 size-4" />
-                                  Add document
-                                </Button>
-                              </Card>
-                            ) : (
-                              <>
-                                {documents.map((doc) => (
-                                  <DocumentCard key={doc.id} doc={doc} vehicleId={activeVehicle.id} />
-                                ))}
-                                <Button
-                                  variant="secondary"
-                                  className="w-full rounded-2xl bg-secondary/60"
-                                  onClick={() => setShowAddDocument(true)}
-                                >
-                                  <Plus className="mr-2 size-4" />
-                                  Add document
-                                </Button>
-                              </>
-                            )}
-                          </TabsContent>
-
-                          <TabsContent value="build" className="mt-4 space-y-3">
-                            <Card className="rounded-3xl border-border/70 bg-background/20 p-4">
-                              <div className="rg-title text-base font-semibold">
-                                Notes & setup
-                              </div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                Track modifications, tyres, accessories, and any
-                                important notes.
-                              </div>
-
-                              {buildNotes.length > 0 ? (
-                                <div className="mt-4 grid gap-2">
-                                  {buildNotes.map((note) => (
-                                    <div
-                                      key={note.id}
-                                      className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card/40 px-3 py-2"
-                                    >
-                                      <div className="text-xs font-medium text-muted-foreground">
-                                        {note.key}
-                                      </div>
-                                      <div className="text-xs font-semibold text-foreground">
-                                        {note.value}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="mt-4 text-xs text-muted-foreground">
-                                  No build notes yet.
-                                </div>
-                              )}
-                            </Card>
-                          </TabsContent>
-                        </Tabs>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          at {km(activeVehicle.nextServiceKm)}
+                        </div>
                       </div>
-                    </motion.div>
-                  </aside>
+
+                      {documents.length > 0 && (() => {
+                        const nearestDoc = documents.reduce((a, b) =>
+                          new Date(a.expiryDate) < new Date(b.expiryDate) ? a : b
+                        );
+                        const status = expiryStatus(nearestDoc.expiryDate);
+                        return (
+                          <div className={
+                            "rounded-3xl border p-4 flex items-center gap-3 " +
+                            (status.urgent
+                              ? "border-amber-500/40 bg-amber-500/5"
+                              : "border-border/70 bg-background/20")
+                          }>
+                            <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-border/70 bg-background/30">
+                              <ShieldCheck className="size-3.5 text-primary" strokeWidth={2.2} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Nearest expiry
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-foreground">
+                                  {docTypeLabel(nearestDoc.type)}
+                                </span>
+                                <span className={`text-xs font-medium ${status.color}`}>
+                                  {status.label}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-medium text-muted-foreground">
+                            Service interval
+                          </div>
+                          <div className="text-xs font-semibold text-foreground">
+                            {km(activeVehicle.nextServiceKm)}
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <Progress
+                            value={serviceProgress(activeVehicle).pct}
+                            className="h-2.5 bg-secondary/60"
+                          />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs">
+                          <div className="text-muted-foreground">
+                            Last: {km(activeVehicle.lastServiceKm)}
+                          </div>
+                          <div className="font-semibold text-foreground">
+                            {km(serviceProgress(activeVehicle).remaining)} left
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tabs — full-width with tables */}
+                    <Tabs defaultValue={defaultTab} className="mt-5 w-full">
+                      <TabsList className="inline-flex rounded-2xl bg-secondary/60">
+                        <TabsTrigger value="history" className="rounded-2xl">
+                          History
+                        </TabsTrigger>
+                        <TabsTrigger value="documents" className="rounded-2xl">
+                          Docs
+                        </TabsTrigger>
+                        <TabsTrigger value="build" className="rounded-2xl">
+                          Build
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="history" className="mt-4">
+                        {serviceRecords.length === 0 ? (
+                          <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/70 bg-background/20 p-6 text-center">
+                            <div className="text-sm font-semibold">
+                              No maintenance logs yet
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Add your first maintenance entry to start building
+                              a trustworthy history.
+                            </div>
+                            <Button
+                              className="rounded-2xl bg-primary text-primary-foreground"
+                              onClick={() => setShowAddMaintenance(true)}
+                            >
+                              <Wrench className="mr-2 size-4" />
+                              Add maintenance
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <ServiceTable records={serviceRecords} />
+                            <Button
+                              variant="secondary"
+                              className="rounded-2xl bg-secondary/60"
+                              onClick={() => setShowAddMaintenance(true)}
+                            >
+                              <Plus className="mr-2 size-4" />
+                              Add maintenance
+                            </Button>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="documents" className="mt-4">
+                        {documents.length === 0 ? (
+                          <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/70 bg-background/20 p-6 text-center">
+                            <div className="text-sm font-semibold">
+                              No documents yet
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Track insurance and PUC expiry dates, optionally attach photos or PDFs.
+                            </div>
+                            <Button
+                              className="rounded-2xl bg-primary text-primary-foreground"
+                              onClick={() => setShowAddDocument(true)}
+                            >
+                              <FileText className="mr-2 size-4" />
+                              Add document
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="overflow-x-auto rounded-2xl border border-border/70">
+                              <table className="w-full text-left text-sm">
+                                <thead>
+                                  <tr className="border-b border-border/70 bg-background/30">
+                                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Type</th>
+                                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Label</th>
+                                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Expiry</th>
+                                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
+                                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">File</th>
+                                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Notes</th>
+                                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {documents.map((doc) => {
+                                    const status = expiryStatus(doc.expiryDate);
+                                    return (
+                                      <DocumentRow key={doc.id} doc={doc} status={status} vehicleId={activeVehicle.id} />
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                            <Button
+                              variant="secondary"
+                              className="rounded-2xl bg-secondary/60"
+                              onClick={() => setShowAddDocument(true)}
+                            >
+                              <Plus className="mr-2 size-4" />
+                              Add document
+                            </Button>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="build" className="mt-4">
+                        <div className="text-xs text-muted-foreground mb-3">
+                          Track modifications, tyres, accessories, and any important notes.
+                        </div>
+                        {buildNotes.length > 0 ? (
+                          <div className="overflow-x-auto rounded-2xl border border-border/70">
+                            <table className="w-full text-left text-sm">
+                              <thead>
+                                <tr className="border-b border-border/70 bg-background/30">
+                                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Key</th>
+                                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Value</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {buildNotes.map((note) => (
+                                  <tr key={note.id} className="border-b border-border/50 last:border-0 hover:bg-background/20">
+                                    <td className="px-4 py-2.5 text-xs font-medium text-muted-foreground">{note.key}</td>
+                                    <td className="px-4 py-2.5 text-xs font-semibold text-foreground">{note.value}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">
+                            No build notes yet.
+                          </div>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </motion.section>
                 )}
               </div>
             )}
