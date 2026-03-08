@@ -1,0 +1,106 @@
+Problem Statement:
+
+Offer seamless digital experience for automobile dealerships and customers. Create an online e-commerce like experience for the automobile retail industry. 
+Requirements:
+
+For Dealerships: ( MVP ) 
+Digital presence through platform
+Statistics and Insights
+Increase Paid service sales
+See customer retention
+Segment customer based on geography, revenue bandwidth, service type
+Number of free and paid services done
+Is customer opting for paid service 
+Announce accessories, apparels, test rides, new launches etc to customers
+ 
+For Customers:
+Digital footprint for your garage ( car, motorcycles )  ( MVP )
+See service history with detailed breakdown like cost, parts changed, accessories added etc  ( MVP )
+Map vehicle’s service history with multiple dealerships, 3rd party automobile workshops etc
+Sell/Buy vehicle more easily - with all the information already digital
+Get new updates from dealership(s) in terms of vehicle availability, test rides, new accessories, finance schemes etc
+Why ? 
+Companies like Hero,TVS,RE,KTM, Bajaj have some online presence in terms of websites/mobile apps but lack quality and support. 
+All these are custom solutions and not compatible with  each other, for customer, there should only be a single interface to handling all there vehicles 
+Single automobile workshops don't have a POS solution for now, this will bridge the gap.
+Opens up new possibilities to buy/sell used vehicles more genuinely. 
+
+Challenges: 
+
+Tekion , international competitor. Company was founded by Jay Vijayan( ex-Tesla CIO)  in 2016 and is now a unicorn. They are only in the American market now, we don't have enough info on their plans in expanding to other countries and India. But they have engineering presence in India. 
+Tech stack needed to build all of the above requirements is complex and will take time. Very hard to pull with a small team working part-time and remote. 
+Adoption of the software in dealerships: 
+Need to convince the brand itself, as dealerships just use the CRM/ERP software provided by the brand. For ex: RE uses Microsoft dynamics which is customised for automobile retail.
+
+
+
+
+Questions to Akshay:
+
+What software does RE use to manage the whole Dealer Management Problem ?
+Should the dealership pay for using the software from RE ?
+Is it compulsory that dealerships should use this software ?
+Does the customer get insight into the service history data that the DMS system stores ? 
+Why can't it be revealed ? Or what part / how should it be revealed ?
+Do you see any missing features in the current system RE uses ? If so, what are they ?
+Forget the DMS part, think of only about your dealership, do you think of ways in which dealership experience can be more smoothened out ? If we come up with a prototype solution will you be happy to accept and test it ?
+What is the current complexity for onboarding / helping the technicians to learn the RE DMS system ? Anything we can do there to smoothen it out ? 
+Can dealerships go to buy/sell used bikes ? Are there any legal issues with RE ?
+
+
+
+
+Research:
+July 12:
+
+There are several car/bike management app today
+https://www.familyhandyman.com/article/best-maintenance-apps-for-your-car/ 
+https://www.redbytes.in/best-car-maintenance-apps/ 
+
+Inputs are manual
+Service, fuel fill ups, repairs, modifications, parking fee etc
+UI/UX not great
+Revenue is via ads/premium features ( yearly : 200 rs etc )
+Updates:
+
+July 11:
+
+Spoke to Akshay:
+
+Can dealerships give us service data about vehicles( odo reading, cost ) ?
+OEMS enforce strict restrictions on dealerships and without their consent no data can be provided even when it might help dealerships to improve sales. 
+Akshay spoke about an example where a RE dealership got terminated from OEM just because the dealer put a benelli banner in front of the dealership. 
+For dealerships like Toyota this is even more strict, so best to not even consider the capability of dealers getting you the data, instead focus on customers. 
+Suggested to figure out a way to get data inputs from customers itself. 
+Dealerships/OEM are free to consume any data for ex car dekho, bikewale RE itself is consuming data to learn more insights 
+
+What kind of insights do dealerships get to boost sales ?
+OEM collects individual sales and service history from each of dealerships and ships it to each of dealers as stats. So dealerships have visibility into certain factors like how many customers were retained, how many got lost, has active customers drifted from particular dealerships and started attaining service from other dealerships etc. 
+OEM analysis this data and periodically to get back lost users they do introduce special service schemes etc 
+
+Will dealerships/OEM support offering discounts to paid services? 
+OEM never does that, RE does not have a culture like the same
+As dealers too giving offers to paid services will harm them in the longer run, since customer can become obsessed with offers and complain when the same is not provided 
+
+How much percent of users do paid services regularly post free services completion ?
+As per Akshay, it's about 17% in RE overalls. Globally and not on a dealership level. There are no stats to view at a dealership level.
+
+Are suggested insights provided  by our platform helpful to dealers ?
+Quality of leads matter, for ex via instagram/google analytics you get to know customers who are interested in RE, this is a more quality lead than something platform proposed ie potential users ( has already one RE vehicle trying to upgrade for later etc )
+In a dealership there might be only a single individual assigned to do follow ups and client reach outs, so filtering out good quality leads is always essential to boost sale.
+Akshay agreed on the fact that less quality leads can still be pushed as suggestions via the platform to potential users.   
+
+
+Spoke to Jomy:
+
+Discussed with Jomy on the idea again, and our initial idea was to do something to get things started. One minor feature we thought we could rollout without much dev and UI effort was to let users register with minimal info and we will notify them on service intervals for their vehicles. Later we decided onto, make the idea a little big and think about the benefits both customer and dealer can gain and some thoughts on revenue generation for the idea. TLDR; Have a platform which offers unified view of the garage which includes things like service history, notifications on service dues, other stuff like insurance. Pollution etc. We wanted delaership to ship service data onto this platform, which makes it easy for customers. Some of the benefits dealerships will get are: 
+Digital presence through platform
+Statistics and Insights
+Increase Paid service sales
+See customer retention
+Segment customer based on geography, revenue bandwidth, service type
+Number of free and paid services done
+Is customer opting for paid service 
+Announce accessories, apparels, test rides, new launches etc to customers
+
+First friction point is to understand challenges faced by dealerships and see if they will be willing to send us the service data of vehicles. To have a chat with Akshay on the same. 
