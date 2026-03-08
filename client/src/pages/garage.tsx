@@ -41,6 +41,7 @@ import {
   deleteVehicle,
   upsertBuildNotes,
 } from "@/lib/api";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { Vehicle, ServiceRecord, BuildNote } from "@shared/schema";
 
 const formatMoney = (n: number) =>
@@ -609,6 +610,7 @@ export default function Garage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <Link href="/">
                 <Button variant="secondary" className="bg-secondary/60">
                   <ChevronLeft className="mr-2 size-4" />

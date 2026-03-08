@@ -12,6 +12,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { fetchVehicles } from "@/lib/api";
 
 function km(n: number) {
@@ -76,21 +77,16 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="hidden items-center gap-2 md:flex">
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
               <Link href="/garage">
                 <Button className="bg-primary text-primary-foreground">
-                  Open garage
+                  <span className="hidden md:inline">Open garage</span>
+                  <span className="md:hidden">Garage</span>
                   <ArrowRight className="ml-2 size-4" />
                 </Button>
               </Link>
             </div>
-
-            <Link href="/garage" className="md:hidden">
-              <Button className="bg-primary text-primary-foreground">
-                Garage
-                <ArrowRight className="ml-2 size-4" />
-              </Button>
-            </Link>
           </div>
         </header>
 
