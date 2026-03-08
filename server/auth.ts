@@ -2,9 +2,8 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import pg from "pg";
 import type { Express, RequestHandler } from "express";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -40,10 +39,6 @@ export function setupAuth(app: Express) {
   app.set("trust proxy", 1);
 
   const PgStore = connectPgSimple(session);
-  const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  });
 
   app.use(
     session({

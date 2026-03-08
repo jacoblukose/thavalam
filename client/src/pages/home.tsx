@@ -185,7 +185,7 @@ export default function Home() {
                         const v = vehicles.find((v) => v.id === doc.vehicleId);
                         const { text, expired } = docUrgencyText(doc);
                         return (
-                          <Link key={doc.id} href="/garage">
+                          <Link key={doc.id} href={`/garage?vehicle=${doc.vehicleId}&tab=documents`}>
                             <div className={
                               "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors hover:bg-amber-500/10 " +
                               (expired

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   AlertTriangle,
@@ -223,7 +223,7 @@ function ServiceCard({ item }: { item: ServiceRecord }) {
       </div>
 
       {item.items.length > 0 && (
-        <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <div className="mt-4 grid gap-2">
           {item.items.map((text, i) => (
             <div
               key={i}
@@ -850,11 +850,18 @@ function AddDocumentDialog({
 }
 
 export default function Garage() {
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("vehicle");
+  });
   const [search, setSearch] = useState<string>("");
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showAddMaintenance, setShowAddMaintenance] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
+  const [defaultTab, setDefaultTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") || "history";
+  });
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -980,25 +987,13 @@ export default function Garage() {
               </div>
 
               {user && (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    className="bg-primary text-primary-foreground"
-                    onClick={() => setShowAddVehicle(true)}
-                  >
-                    <Plus className="mr-2 size-4" />
-                    Add vehicle
-                  </Button>
-                  {activeVehicle && (
-                    <Button
-                      variant="secondary"
-                      className="bg-secondary/60"
-                      onClick={() => setShowAddMaintenance(true)}
-                    >
-                      <Wrench className="mr-2 size-4" />
-                      Log maintenance
-                    </Button>
-                  )}
-                </div>
+                <Button
+                  className="bg-primary text-primary-foreground"
+                  onClick={() => setShowAddVehicle(true)}
+                >
+                  <Plus className="mr-2 size-4" />
+                  Add vehicle
+                </Button>
               )}
             </div>
 
@@ -1274,7 +1269,7 @@ export default function Garage() {
                           </div>
                         </div>
 
-                        <Tabs defaultValue="history" className="w-full">
+                        <Tabs defaultValue={defaultTab} className="w-full">
                           <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-secondary/60">
                             <TabsTrigger value="history" className="rounded-2xl">
                               History
