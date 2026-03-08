@@ -7,22 +7,40 @@ import {
   Car,
   CheckCircle2,
   ChevronLeft,
+  Loader2,
   MapPin,
   Plus,
   Settings2,
   Sparkles,
+  Trash2,
   Wrench,
+  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fetchVehicles, fetchServiceRecords, fetchBuildNotes } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  fetchVehicles,
+  fetchServiceRecords,
+  fetchBuildNotes,
+  createVehicle,
+  createServiceRecord,
+  deleteVehicle,
+  upsertBuildNotes,
+} from "@/lib/api";
 import type { Vehicle, ServiceRecord, BuildNote } from "@shared/schema";
 
 const formatMoney = (n: number) =>
@@ -43,189 +61,6 @@ function serviceProgress(v: Vehicle) {
   const remaining = Math.max(0, v.nextServiceKm - v.odoKm);
   return { pct, remaining };
 }
-
-const mockVehicles: Vehicle[] = [
-  {
-    id: "gt650",
-    nickname: "Weekend Twin",
-    model: "Royal Enfield Continental GT 650",
-    year: "2022",
-    odoKm: 12450,
-    lastServiceKm: 10000,
-    nextServiceKm: 15000,
-    health: 84,
-    location: "Bengaluru",
-    tags: ["Motorcycle", "Cafe racer", "Touring"],
-  },
-  {
-    id: "duke",
-    nickname: "City Knife",
-    model: "KTM Duke 390",
-    year: "2021",
-    odoKm: 18720,
-    lastServiceKm: 17500,
-    nextServiceKm: 22500,
-    health: 76,
-    location: "Bengaluru",
-    tags: ["Motorcycle", "Street", "Performance"],
-  },
-  {
-    id: "himalayan",
-    nickname: "Trail Mule",
-    model: "Royal Enfield Himalayan 450",
-    year: "2024",
-    odoKm: 3620,
-    lastServiceKm: 2500,
-    nextServiceKm: 5000,
-    health: 91,
-    location: "Mysuru",
-    tags: ["Motorcycle", "ADV", "Off-road"],
-  },
-  {
-    id: "fortuner",
-    nickname: "Family Tank",
-    model: "Toyota Fortuner 2.8 4x4 AT",
-    year: "2020",
-    odoKm: 54880,
-    lastServiceKm: 50000,
-    nextServiceKm: 60000,
-    health: 79,
-    location: "Chennai",
-    tags: ["Car", "SUV", "Touring"],
-  },
-  {
-    id: "swift",
-    nickname: "City Sprint",
-    model: "Maruti Suzuki Swift ZXi",
-    year: "2019",
-    odoKm: 67240,
-    lastServiceKm: 65000,
-    nextServiceKm: 75000,
-    health: 73,
-    location: "Pune",
-    tags: ["Car", "Hatchback", "Daily"],
-  },
-  {
-    id: "creta",
-    nickname: "Comfort Cruiser",
-    model: "Hyundai Creta 1.5 Petrol IVT",
-    year: "2022",
-    odoKm: 23810,
-    lastServiceKm: 20000,
-    nextServiceKm: 30000,
-    health: 88,
-    location: "Hyderabad",
-    tags: ["Car", "SUV", "Family"],
-  },
-];
-
-const mockHistory: Record<string, ServiceItem[]> = {
-  gt650: [
-    {
-      id: "svc-gt-1",
-      title: "Periodic service (10,000 km)",
-      date: "07 Sep 2025",
-      odometerKm: 10012,
-      amount: 3860,
-      workshop: "RE Company Store — Indiranagar",
-      items: [
-        { label: "Engine oil", value: "Motul 7100 10W-50" },
-        { label: "Oil filter", value: "Replaced" },
-        { label: "Chain", value: "Cleaned + lubed" },
-        { label: "Accessories", value: "Bar-end mirrors" },
-      ],
-    },
-    {
-      id: "svc-gt-0",
-      title: "Paid job: brake pads",
-      date: "19 Jun 2025",
-      odometerKm: 8720,
-      amount: 2450,
-      workshop: "Torque Works — HSR",
-      items: [
-        { label: "Front pads", value: "Sintered" },
-        { label: "Brake fluid", value: "DOT 4 bleed" },
-        { label: "Check", value: "Rotor inspection" },
-      ],
-    },
-  ],
-  duke: [
-    {
-      id: "svc-dk-1",
-      title: "Periodic service",
-      date: "03 Oct 2025",
-      odometerKm: 17540,
-      amount: 4120,
-      workshop: "KTM Service — Whitefield",
-      items: [
-        { label: "Oil", value: "Replaced" },
-        { label: "Air filter", value: "Cleaned" },
-        { label: "ECU", value: "Diagnostics" },
-      ],
-    },
-  ],
-  himalayan: [
-    {
-      id: "svc-hm-0",
-      title: "First service",
-      date: "11 Dec 2025",
-      odometerKm: 2520,
-      amount: 0,
-      workshop: "RE Service — Mysuru",
-      items: [
-        { label: "Oil", value: "Replaced" },
-        { label: "Bolt check", value: "Torqued" },
-        { label: "Chain", value: "Adjusted" },
-      ],
-    },
-  ],
-  fortuner: [
-    {
-      id: "svc-ft-1",
-      title: "Periodic service (50,000 km)",
-      date: "22 Aug 2025",
-      odometerKm: 50120,
-      amount: 9850,
-      workshop: "Toyota Service — OMR",
-      items: [
-        { label: "Engine oil", value: "Replaced" },
-        { label: "Oil filter", value: "Replaced" },
-        { label: "Brake pads", value: "Inspected" },
-        { label: "Wheel alignment", value: "Done" },
-      ],
-    },
-  ],
-  swift: [
-    {
-      id: "svc-sw-1",
-      title: "Periodic service (65,000 km)",
-      date: "05 Nov 2025",
-      odometerKm: 65110,
-      amount: 6120,
-      workshop: "Maruti Service — Baner",
-      items: [
-        { label: "Engine oil", value: "Replaced" },
-        { label: "Air filter", value: "Replaced" },
-        { label: "Battery", value: "Healthy" },
-      ],
-    },
-  ],
-  creta: [
-    {
-      id: "svc-cr-1",
-      title: "Periodic service (20,000 km)",
-      date: "14 Sep 2025",
-      odometerKm: 20040,
-      amount: 7350,
-      workshop: "Hyundai Service — Gachibowli",
-      items: [
-        { label: "Engine oil", value: "Replaced" },
-        { label: "Cabin filter", value: "Replaced" },
-        { label: "AC check", value: "OK" },
-      ],
-    },
-  ],
-};
 
 function VehicleTypeIcon({ tags }: { tags: string[] }) {
   const isCar = tags.some((t) => t.toLowerCase() === "car");
@@ -257,7 +92,6 @@ function VehicleCard({
           ? "border-primary/40 bg-gradient-to-b from-card to-card/60"
           : "border-border/80 bg-card/50 hover:border-border hover:bg-card/70")
       }
-      data-testid={`card-vehicle-${v.id}`}
     >
       <div className="absolute inset-0 -z-10 rounded-3xl opacity-0 transition-opacity group-hover:opacity-100">
         <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(1000px_circle_at_20%_0%,hsl(var(--primary)/0.10),transparent_60%),radial-gradient(900px_circle_at_80%_30%,hsl(var(--accent)/0.10),transparent_55%)]" />
@@ -266,10 +100,7 @@ function VehicleCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <div
-              className="rg-title text-base font-semibold text-foreground md:text-lg"
-              data-testid={`text-vehicle-nickname-${v.id}`}
-            >
+            <div className="rg-title text-base font-semibold text-foreground md:text-lg">
               {v.nickname}
             </div>
             <Badge
@@ -279,15 +110,11 @@ function VehicleCard({
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary/60 text-foreground"
               }
-              data-testid={`badge-vehicle-year-${v.id}`}
             >
               {v.year}
             </Badge>
           </div>
-          <div
-            className="mt-1 truncate text-sm text-muted-foreground"
-            data-testid={`text-vehicle-model-${v.id}`}
-          >
+          <div className="mt-1 truncate text-sm text-muted-foreground">
             {v.model}
           </div>
         </div>
@@ -296,15 +123,11 @@ function VehicleCard({
           <Badge
             variant="outline"
             className="border-border/70 bg-background/30 text-foreground"
-            data-testid={`badge-vehicle-location-${v.id}`}
           >
             <MapPin className="mr-1 size-3.5" />
             {v.location}
           </Badge>
-          <div
-            className="text-xs font-medium text-muted-foreground"
-            data-testid={`text-vehicle-odo-${v.id}`}
-          >
+          <div className="text-xs font-medium text-muted-foreground">
             {km(v.odoKm)}
           </div>
         </div>
@@ -314,17 +137,11 @@ function VehicleCard({
         <div className="flex items-center justify-between gap-4">
           <div className="text-xs font-medium text-muted-foreground">
             Next service in{" "}
-            <span
-              className="font-semibold text-foreground"
-              data-testid={`text-vehicle-remaining-${v.id}`}
-            >
+            <span className="font-semibold text-foreground">
               {km(remaining)}
             </span>
           </div>
-          <div
-            className="inline-flex items-center gap-2 text-xs font-semibold text-foreground"
-            data-testid={`text-vehicle-health-${v.id}`}
-          >
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-foreground">
             <span className="grid size-8 place-items-center rounded-xl border border-border/80 bg-background/30">
               <VehicleTypeIcon tags={v.tags} />
             </span>
@@ -333,11 +150,7 @@ function VehicleCard({
         </div>
 
         <div className="mt-2">
-          <Progress
-            value={pct}
-            className="h-2.5 bg-secondary/60"
-            data-testid={`progress-vehicle-service-${v.id}`}
-          />
+          <Progress value={pct} className="h-2.5 bg-secondary/60" />
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -345,7 +158,6 @@ function VehicleCard({
             <span
               key={t}
               className="rounded-full border border-border/70 bg-background/30 px-2.5 py-1 text-xs font-medium text-foreground"
-              data-testid={`tag-vehicle-${v.id}-${t.toLowerCase().replace(/\s+/g, "-")}`}
             >
               {t}
             </span>
@@ -356,26 +168,18 @@ function VehicleCard({
   );
 }
 
-function ServiceCard({ item }: { item: ServiceItem }) {
+function ServiceCard({ item }: { item: ServiceRecord }) {
   return (
-    <Card
-      className="rounded-3xl border-border/80 bg-card/50 p-4 shadow-sm backdrop-blur md:p-5"
-      data-testid={`card-service-${item.id}`}
-    >
+    <Card className="rounded-3xl border-border/80 bg-card/50 p-4 shadow-sm backdrop-blur md:p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div
-            className="rg-title text-base font-semibold"
-            data-testid={`text-service-title-${item.id}`}
-          >
-            {item.title}
-          </div>
+          <div className="rg-title text-base font-semibold">{item.title}</div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span data-testid={`text-service-date-${item.id}`}>{item.date}</span>
+            <span>{item.date}</span>
             <span className="text-muted-foreground/40">•</span>
-            <span data-testid={`text-service-odo-${item.id}`}>{km(item.odometerKm)}</span>
+            <span>{km(item.odometerKm)}</span>
             <span className="text-muted-foreground/40">•</span>
-            <span data-testid={`text-service-workshop-${item.id}`}>{item.workshop}</span>
+            <span>{item.workshop}</span>
           </div>
         </div>
 
@@ -385,52 +189,402 @@ function ServiceCard({ item }: { item: ServiceItem }) {
               ? "bg-secondary/60 text-foreground"
               : "bg-primary text-primary-foreground"
           }
-          data-testid={`badge-service-amount-${item.id}`}
         >
           {item.amount === 0 ? "Free" : formatMoney(item.amount)}
         </Badge>
       </div>
 
-      <div className="mt-4 grid gap-2 md:grid-cols-2">
-        {item.items.map((i) => (
-          <div
-            key={i.label}
-            className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-background/20 px-3 py-2"
-            data-testid={`row-service-item-${item.id}-${i.label
-              .toLowerCase()
-              .replace(/\s+/g, "-")}`}
-          >
-            <div className="text-xs font-medium text-muted-foreground">{i.label}</div>
-            <div className="text-xs font-semibold text-foreground">{i.value}</div>
-          </div>
-        ))}
-      </div>
+      {item.items.length > 0 && (
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          {item.items.map((text, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 rounded-2xl border border-border/70 bg-background/20 px-3 py-2"
+            >
+              <div className="text-xs font-medium text-foreground">{text}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
 
+function AddVehicleDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    nickname: "",
+    model: "",
+    year: "",
+    odoKm: "",
+    lastServiceKm: "",
+    nextServiceKm: "",
+    location: "",
+    tags: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: createVehicle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      onOpenChange(false);
+      setForm({
+        nickname: "",
+        model: "",
+        year: "",
+        odoKm: "",
+        lastServiceKm: "",
+        nextServiceKm: "",
+        location: "",
+        tags: "",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      nickname: form.nickname,
+      model: form.model,
+      year: form.year,
+      odoKm: parseInt(form.odoKm) || 0,
+      lastServiceKm: parseInt(form.lastServiceKm) || 0,
+      nextServiceKm: parseInt(form.nextServiceKm) || 0,
+      location: form.location,
+      tags: form.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    });
+  };
+
+  const update = (key: string, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add vehicle</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          <div className="grid gap-2">
+            <Label htmlFor="nickname">Nickname</Label>
+            <Input
+              id="nickname"
+              placeholder="e.g. Weekend Twin"
+              value={form.nickname}
+              onChange={(e) => update("nickname", e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="model">Model</Label>
+              <Input
+                id="model"
+                placeholder="e.g. Royal Enfield GT 650"
+                value={form.model}
+                onChange={(e) => update("model", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="year">Year</Label>
+              <Input
+                id="year"
+                placeholder="e.g. 2022"
+                value={form.year}
+                onChange={(e) => update("year", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="odoKm">Odometer (km)</Label>
+              <Input
+                id="odoKm"
+                type="number"
+                placeholder="12450"
+                value={form.odoKm}
+                onChange={(e) => update("odoKm", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="lastServiceKm">Last service (km)</Label>
+              <Input
+                id="lastServiceKm"
+                type="number"
+                placeholder="10000"
+                value={form.lastServiceKm}
+                onChange={(e) => update("lastServiceKm", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="nextServiceKm">Next service (km)</Label>
+              <Input
+                id="nextServiceKm"
+                type="number"
+                placeholder="15000"
+                value={form.nextServiceKm}
+                onChange={(e) => update("nextServiceKm", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                placeholder="e.g. Bengaluru"
+                value={form.location}
+                onChange={(e) => update("location", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tags">Tags (comma-separated)</Label>
+              <Input
+                id="tags"
+                placeholder="Motorcycle, Touring"
+                value={form.tags}
+                onChange={(e) => update("tags", e.target.value)}
+              />
+            </div>
+          </div>
+          <Button
+            type="submit"
+            className="mt-2 w-full bg-primary text-primary-foreground"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Plus className="mr-2 size-4" />
+            )}
+            Add vehicle
+          </Button>
+          {mutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to add vehicle. Please try again.
+            </p>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddServiceDialog({
+  open,
+  onOpenChange,
+  vehicleId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicleId: string;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    title: "",
+    date: "",
+    odometerKm: "",
+    amount: "",
+    workshop: "",
+    items: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: Parameters<typeof createServiceRecord>[1]) =>
+      createServiceRecord(vehicleId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["serviceRecords", vehicleId],
+      });
+      onOpenChange(false);
+      setForm({
+        title: "",
+        date: "",
+        odometerKm: "",
+        amount: "",
+        workshop: "",
+        items: "",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      title: form.title,
+      date: form.date,
+      odometerKm: parseInt(form.odometerKm) || 0,
+      amount: parseInt(form.amount) || 0,
+      workshop: form.workshop,
+      items: form.items
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    });
+  };
+
+  const update = (key: string, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Log service</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          <div className="grid gap-2">
+            <Label htmlFor="svc-title">Title</Label>
+            <Input
+              id="svc-title"
+              placeholder="e.g. Periodic service (10,000 km)"
+              value={form.title}
+              onChange={(e) => update("title", e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="svc-date">Date</Label>
+              <Input
+                id="svc-date"
+                placeholder="e.g. 07 Sep 2025"
+                value={form.date}
+                onChange={(e) => update("date", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="svc-workshop">Workshop</Label>
+              <Input
+                id="svc-workshop"
+                placeholder="e.g. RE Store — Indiranagar"
+                value={form.workshop}
+                onChange={(e) => update("workshop", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="svc-odo">Odometer (km)</Label>
+              <Input
+                id="svc-odo"
+                type="number"
+                placeholder="10012"
+                value={form.odometerKm}
+                onChange={(e) => update("odometerKm", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="svc-amount">Amount (INR)</Label>
+              <Input
+                id="svc-amount"
+                type="number"
+                placeholder="3860"
+                value={form.amount}
+                onChange={(e) => update("amount", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="svc-items">Items (comma-separated)</Label>
+            <Input
+              id="svc-items"
+              placeholder="Oil change, Filter replaced, Chain lubed"
+              value={form.items}
+              onChange={(e) => update("items", e.target.value)}
+            />
+          </div>
+          <Button
+            type="submit"
+            className="mt-2 w-full bg-primary text-primary-foreground"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Wrench className="mr-2 size-4" />
+            )}
+            Log service
+          </Button>
+          {mutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to log service. Please try again.
+            </p>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Garage() {
-  const [activeId, setActiveId] = useState<string>(mockVehicles[0]?.id ?? "gt650");
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [showAddService, setShowAddService] = useState(false);
+  const queryClient = useQueryClient();
+
+  const {
+    data: allVehicles = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: fetchVehicles,
+  });
 
   const vehicles = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return mockVehicles;
-    return mockVehicles.filter(
+    if (!q) return allVehicles;
+    return allVehicles.filter(
       (v) =>
         v.nickname.toLowerCase().includes(q) ||
         v.model.toLowerCase().includes(q) ||
         v.location.toLowerCase().includes(q) ||
         v.tags.join(" ").toLowerCase().includes(q),
     );
-  }, [search]);
+  }, [search, allVehicles]);
 
-  const activeVehicle = useMemo(
-    () => mockVehicles.find((v) => v.id === activeId) ?? mockVehicles[0],
-    [activeId],
-  );
+  const currentActiveId = activeId ?? allVehicles[0]?.id ?? null;
+  const activeVehicle = allVehicles.find((v) => v.id === currentActiveId);
 
-  const history = mockHistory[activeVehicle.id] ?? [];
+  const { data: serviceRecords = [] } = useQuery({
+    queryKey: ["serviceRecords", currentActiveId],
+    queryFn: () => fetchServiceRecords(currentActiveId!),
+    enabled: !!currentActiveId,
+  });
+
+  const { data: buildNotes = [] } = useQuery({
+    queryKey: ["buildNotes", currentActiveId],
+    queryFn: () => fetchBuildNotes(currentActiveId!),
+    enabled: !!currentActiveId,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteVehicle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      setActiveId(null);
+    },
+  });
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -445,23 +599,26 @@ export default function Garage() {
                 <Bike className="size-5 text-primary" strokeWidth={2.2} />
               </div>
               <div className="leading-tight">
-                <div className="rg-title text-base font-semibold" data-testid="text-app-title">
-                  Rider Garage
+                <div className="rg-title text-base font-semibold">
+                  Thavalam
                 </div>
-                <div className="text-xs text-muted-foreground" data-testid="text-app-subtitle">
+                <div className="text-xs text-muted-foreground">
                   One interface for all your vehicles.
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <Link href="/" data-testid="link-back-home">
-                <Button variant="secondary" className="bg-secondary/60" data-testid="button-back-home">
+              <Link href="/">
+                <Button variant="secondary" className="bg-secondary/60">
                   <ChevronLeft className="mr-2 size-4" />
                   Home
                 </Button>
               </Link>
-              <Button className="bg-primary text-primary-foreground" data-testid="button-add-vehicle">
+              <Button
+                className="bg-primary text-primary-foreground"
+                onClick={() => setShowAddVehicle(true)}
+              >
                 <Plus className="mr-2 size-4" />
                 Add
               </Button>
@@ -473,272 +630,323 @@ export default function Garage() {
           <div className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-5 shadow-md backdrop-blur md:p-7">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="max-w-xl">
-                <div
-                  className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/30 px-3 py-1 text-xs font-semibold text-foreground"
-                  data-testid="badge-hero-tag"
-                >
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/30 px-3 py-1 text-xs font-semibold text-foreground">
                   <Sparkles className="size-3.5 text-primary" />
                   Open Garage
                 </div>
-                <h1
-                  className="mt-3 rg-title text-3xl font-semibold leading-[1.05] tracking-tight sm:text-4xl"
-                  data-testid="text-garage-page-title"
-                >
+                <h1 className="mt-3 rg-title text-3xl font-semibold leading-[1.05] tracking-tight sm:text-4xl">
                   Your vehicles, organized.
                 </h1>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground" data-testid="text-garage-page-description">
-                  Add anything you own or maintain\u2014motorcycles, cars, and more. Track service intervals, history, and build notes in one clean view.
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  Add anything you own or maintain — motorcycles, cars, and
+                  more. Track service intervals, history, and build notes in one
+                  clean view.
                 </p>
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button className="bg-primary text-primary-foreground" data-testid="button-cta-add-vehicle">
+                <Button
+                  className="bg-primary text-primary-foreground"
+                  onClick={() => setShowAddVehicle(true)}
+                >
                   <Plus className="mr-2 size-4" />
                   Add vehicle
                 </Button>
-                <Button variant="secondary" className="bg-secondary/60" data-testid="button-cta-log-service">
-                  <Wrench className="mr-2 size-4" />
-                  Log service
-                </Button>
+                {activeVehicle && (
+                  <Button
+                    variant="secondary"
+                    className="bg-secondary/60"
+                    onClick={() => setShowAddService(true)}
+                  >
+                    <Wrench className="mr-2 size-4" />
+                    Log service
+                  </Button>
+                )}
               </div>
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3" aria-label="Quick stats">
-              <div
-                className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/60 px-4 py-3 shadow-sm backdrop-blur"
-                data-testid="stat-vehicles"
-              >
+              <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/60 px-4 py-3 shadow-sm backdrop-blur">
                 <div className="grid size-10 place-items-center rounded-xl border border-border/80 bg-background/40">
                   <BadgeCheck className="size-4 text-primary" strokeWidth={2.2} />
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-medium text-muted-foreground">Vehicles</div>
-                  <div className="truncate text-sm font-semibold text-foreground" data-testid="text-vehicles-count">
-                    {mockVehicles.length}
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {allVehicles.length}
                   </div>
                 </div>
               </div>
 
-              <div
-                className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/60 px-4 py-3 shadow-sm backdrop-blur"
-                data-testid="stat-next-interval"
-              >
+              <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/60 px-4 py-3 shadow-sm backdrop-blur">
                 <div className="grid size-10 place-items-center rounded-xl border border-border/80 bg-background/40">
                   <CalendarClock className="size-4 text-primary" strokeWidth={2.2} />
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-medium text-muted-foreground">Next interval</div>
-                  <div className="truncate text-sm font-semibold text-foreground" data-testid="text-next-interval">
-                    Due soon
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {allVehicles.length > 0
+                      ? km(
+                          Math.min(
+                            ...allVehicles.map(
+                              (v) => Math.max(0, v.nextServiceKm - v.odoKm),
+                            ),
+                          ),
+                        )
+                      : "—"}
                   </div>
                 </div>
               </div>
 
-              <div
-                className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/60 px-4 py-3 shadow-sm backdrop-blur"
-                data-testid="stat-verified"
-              >
+              <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/60 px-4 py-3 shadow-sm backdrop-blur">
                 <div className="grid size-10 place-items-center rounded-xl border border-border/80 bg-background/40">
                   <CheckCircle2 className="size-4 text-primary" strokeWidth={2.2} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground">Verified logs</div>
-                  <div className="truncate text-sm font-semibold text-foreground" data-testid="text-verified-logs">
-                    6 services
+                  <div className="text-xs font-medium text-muted-foreground">Total distance</div>
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {allVehicles.length > 0
+                      ? km(allVehicles.reduce((sum, v) => sum + v.odoKm, 0))
+                      : "—"}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <section>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="rg-title text-base font-semibold" data-testid="text-list-title">
-                      Vehicle list
-                    </div>
-                    <div className="text-xs text-muted-foreground" data-testid="text-list-subtitle">
-                      Select a vehicle to view its interval and history.
-                    </div>
-                  </div>
-
-                  <div className="flex flex-1 items-center gap-2 sm:max-w-md">
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search vehicles, tags, city…"
-                      className="h-11 rounded-2xl border-border/70 bg-background/30"
-                      data-testid="input-search"
-                    />
-                    <Button
-                      variant="secondary"
-                      className="h-11 rounded-2xl bg-secondary/60"
-                      data-testid="button-filters"
-                    >
-                      <Settings2 className="size-4" />
-                    </Button>
+            {isLoading ? (
+              <div className="mt-12 flex items-center justify-center gap-3 text-muted-foreground">
+                <Loader2 className="size-5 animate-spin" />
+                Loading vehicles...
+              </div>
+            ) : isError ? (
+              <div className="mt-12 text-center text-sm text-destructive">
+                Failed to load vehicles. Please refresh.
+              </div>
+            ) : allVehicles.length === 0 ? (
+              <div className="mt-12 flex flex-col items-center gap-4 text-center">
+                <div className="grid size-16 place-items-center rounded-3xl border border-border/70 bg-background/30">
+                  <Bike className="size-7 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-base font-semibold">No vehicles yet</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Add your first vehicle to get started.
                   </div>
                 </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {vehicles.map((v) => (
-                    <VehicleCard
-                      key={v.id}
-                      v={v}
-                      active={v.id === activeId}
-                      onSelect={() => setActiveId(v.id)}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <aside className="lg:sticky lg:top-6 lg:self-start">
-                <motion.div
-                  key={activeVehicle.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-5 shadow-md backdrop-blur md:p-7"
+                <Button
+                  className="bg-primary text-primary-foreground"
+                  onClick={() => setShowAddVehicle(true)}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-muted-foreground" data-testid="text-active-label">
-                        Selected vehicle
+                  <Plus className="mr-2 size-4" />
+                  Add your first vehicle
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+                <section>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="rg-title text-base font-semibold">
+                        Vehicle list
                       </div>
-                      <div className="mt-1 rg-title text-xl font-semibold" data-testid="text-active-nickname">
-                        {activeVehicle.nickname}
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground" data-testid="text-active-model">
-                        {activeVehicle.model}
+                      <div className="text-xs text-muted-foreground">
+                        Select a vehicle to view its interval and history.
                       </div>
                     </div>
 
-                    <Badge className="bg-primary text-primary-foreground" data-testid="badge-active-health">
-                      <CheckCircle2 className="mr-1.5 size-4" />
-                      {activeVehicle.health}%
-                    </Badge>
+                    <div className="flex flex-1 items-center gap-2 sm:max-w-md">
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search vehicles, tags, city…"
+                        className="h-11 rounded-2xl border-border/70 bg-background/30"
+                      />
+                      <Button
+                        variant="secondary"
+                        className="h-11 rounded-2xl bg-secondary/60"
+                      >
+                        <Settings2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="mt-5 grid gap-3">
-                    <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-medium text-muted-foreground" data-testid="text-interval-title">
-                          Service interval
-                        </div>
-                        <div className="text-xs font-semibold text-foreground" data-testid="text-interval-next">
-                          Next at {km(activeVehicle.nextServiceKm)}
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <Progress
-                          value={serviceProgress(activeVehicle).pct}
-                          className="h-2.5 bg-secondary/60"
-                          data-testid="progress-active-interval"
-                        />
-                      </div>
-                      <div className="mt-3 flex items-center justify-between text-xs">
-                        <div className="text-muted-foreground" data-testid="text-interval-last">
-                          Last: {km(activeVehicle.lastServiceKm)}
-                        </div>
-                        <div className="font-semibold text-foreground" data-testid="text-interval-remaining">
-                          {km(serviceProgress(activeVehicle).remaining)} left
-                        </div>
-                      </div>
-                    </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {vehicles.map((v) => (
+                      <VehicleCard
+                        key={v.id}
+                        v={v}
+                        active={v.id === currentActiveId}
+                        onSelect={() => setActiveId(v.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
 
-                    <Tabs defaultValue="history" className="w-full">
-                      <TabsList
-                        className="grid w-full grid-cols-2 rounded-2xl bg-secondary/60"
-                        data-testid="tabs-active"
-                      >
-                        <TabsTrigger value="history" className="rounded-2xl" data-testid="tab-history">
-                          History
-                        </TabsTrigger>
-                        <TabsTrigger value="build" className="rounded-2xl" data-testid="tab-build">
-                          Build
-                        </TabsTrigger>
-                      </TabsList>
+                {activeVehicle && (
+                  <aside className="lg:sticky lg:top-6 lg:self-start">
+                    <motion.div
+                      key={activeVehicle.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-5 shadow-md backdrop-blur md:p-7"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-muted-foreground">
+                            Selected vehicle
+                          </div>
+                          <div className="mt-1 rg-title text-xl font-semibold">
+                            {activeVehicle.nickname}
+                          </div>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {activeVehicle.model}
+                          </div>
+                        </div>
 
-                      <TabsContent value="history" className="mt-4 space-y-3">
-                        {history.length === 0 ? (
-                          <Card
-                            className="rounded-3xl border-border/70 bg-background/20 p-4"
-                            data-testid="empty-history"
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-primary text-primary-foreground">
+                            <CheckCircle2 className="mr-1.5 size-4" />
+                            {activeVehicle.health}%
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm(`Delete "${activeVehicle.nickname}"?`)) {
+                                deleteMutation.mutate(activeVehicle.id);
+                              }
+                            }}
                           >
-                            <div className="text-sm font-semibold" data-testid="text-empty-history-title">
-                              No service logs yet
-                            </div>
-                            <div
-                              className="mt-1 text-xs text-muted-foreground"
-                              data-testid="text-empty-history-subtitle"
-                            >
-                              Add your first service entry to start building a trustworthy history.
-                            </div>
-                            <Button
-                              className="mt-3 w-full rounded-2xl bg-primary text-primary-foreground"
-                              data-testid="button-empty-add-service"
-                            >
-                              <Wrench className="mr-2 size-4" />
-                              Add service
-                            </Button>
-                          </Card>
-                        ) : (
-                          history.map((h) => <ServiceCard key={h.id} item={h} />)
-                        )}
-                      </TabsContent>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </div>
 
-                      <TabsContent value="build" className="mt-4 space-y-3">
-                        <Card className="rounded-3xl border-border/70 bg-background/20 p-4" data-testid="card-build">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="rg-title text-base font-semibold" data-testid="text-build-title">
+                      <div className="mt-5 grid gap-3">
+                        <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Service interval
+                            </div>
+                            <div className="text-xs font-semibold text-foreground">
+                              Next at {km(activeVehicle.nextServiceKm)}
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <Progress
+                              value={serviceProgress(activeVehicle).pct}
+                              className="h-2.5 bg-secondary/60"
+                            />
+                          </div>
+                          <div className="mt-3 flex items-center justify-between text-xs">
+                            <div className="text-muted-foreground">
+                              Last: {km(activeVehicle.lastServiceKm)}
+                            </div>
+                            <div className="font-semibold text-foreground">
+                              {km(serviceProgress(activeVehicle).remaining)} left
+                            </div>
+                          </div>
+                        </div>
+
+                        <Tabs defaultValue="history" className="w-full">
+                          <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-secondary/60">
+                            <TabsTrigger value="history" className="rounded-2xl">
+                              History
+                            </TabsTrigger>
+                            <TabsTrigger value="build" className="rounded-2xl">
+                              Build
+                            </TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent value="history" className="mt-4 space-y-3">
+                            {serviceRecords.length === 0 ? (
+                              <Card className="rounded-3xl border-border/70 bg-background/20 p-4">
+                                <div className="text-sm font-semibold">
+                                  No service logs yet
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  Add your first service entry to start building
+                                  a trustworthy history.
+                                </div>
+                                <Button
+                                  className="mt-3 w-full rounded-2xl bg-primary text-primary-foreground"
+                                  onClick={() => setShowAddService(true)}
+                                >
+                                  <Wrench className="mr-2 size-4" />
+                                  Add service
+                                </Button>
+                              </Card>
+                            ) : (
+                              <>
+                                {serviceRecords.map((r) => (
+                                  <ServiceCard key={r.id} item={r} />
+                                ))}
+                                <Button
+                                  variant="secondary"
+                                  className="w-full rounded-2xl bg-secondary/60"
+                                  onClick={() => setShowAddService(true)}
+                                >
+                                  <Plus className="mr-2 size-4" />
+                                  Add service
+                                </Button>
+                              </>
+                            )}
+                          </TabsContent>
+
+                          <TabsContent value="build" className="mt-4 space-y-3">
+                            <Card className="rounded-3xl border-border/70 bg-background/20 p-4">
+                              <div className="rg-title text-base font-semibold">
                                 Notes & setup
                               </div>
-                              <div className="mt-1 text-xs text-muted-foreground" data-testid="text-build-subtitle">
-                                Track modifications, tyres, accessories, and any important notes for service.
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                Track modifications, tyres, accessories, and any
+                                important notes.
                               </div>
-                            </div>
-                            <Badge variant="secondary" className="bg-secondary/60" data-testid="badge-build-mvp">
-                              MVP
-                            </Badge>
-                          </div>
 
-                          <div className="mt-4 grid gap-2">
-                            {[
-                              { k: "Tyres", v: "All-season / performance" },
-                              { k: "Fluids", v: "Last changed in last service" },
-                              { k: "Accessories", v: "Documented" },
-                              { k: "Notes", v: "Keep receipts + photos" },
-                            ].map((row) => (
-                              <div
-                                key={row.k}
-                                className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card/40 px-3 py-2"
-                                data-testid={`row-build-${row.k.toLowerCase()}`}
-                              >
-                                <div className="text-xs font-medium text-muted-foreground">{row.k}</div>
-                                <div className="text-xs font-semibold text-foreground">{row.v}</div>
-                              </div>
-                            ))}
-                          </div>
-
-                          <Button
-                            variant="secondary"
-                            className="mt-4 w-full rounded-2xl bg-secondary/60"
-                            data-testid="button-edit-build"
-                          >
-                            Edit notes
-                            <ArrowRight className="ml-2 size-4" />
-                          </Button>
-                        </Card>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
-                </motion.div>
-              </aside>
-            </div>
+                              {buildNotes.length > 0 ? (
+                                <div className="mt-4 grid gap-2">
+                                  {buildNotes.map((note) => (
+                                    <div
+                                      key={note.id}
+                                      className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card/40 px-3 py-2"
+                                    >
+                                      <div className="text-xs font-medium text-muted-foreground">
+                                        {note.key}
+                                      </div>
+                                      <div className="text-xs font-semibold text-foreground">
+                                        {note.value}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="mt-4 text-xs text-muted-foreground">
+                                  No build notes yet.
+                                </div>
+                              )}
+                            </Card>
+                          </TabsContent>
+                        </Tabs>
+                      </div>
+                    </motion.div>
+                  </aside>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>
+
+      <AddVehicleDialog open={showAddVehicle} onOpenChange={setShowAddVehicle} />
+      {currentActiveId && (
+        <AddServiceDialog
+          open={showAddService}
+          onOpenChange={setShowAddService}
+          vehicleId={currentActiveId}
+        />
+      )}
     </div>
   );
 }
