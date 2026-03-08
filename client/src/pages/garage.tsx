@@ -9,6 +9,7 @@ import {
   Car,
   CheckCircle2,
   ChevronLeft,
+  IndianRupee,
   Loader2,
   MapPin,
   Plus,
@@ -857,6 +858,44 @@ export default function Garage() {
                       </div>
 
                       <div className="mt-5 grid gap-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
+                            <div className="flex items-center gap-2">
+                              <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                                <IndianRupee className="size-3.5 text-primary" strokeWidth={2.2} />
+                              </div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Total cost
+                              </div>
+                            </div>
+                            <div className="mt-2 text-lg font-semibold text-foreground">
+                              {serviceRecords.length > 0
+                                ? formatMoney(serviceRecords.reduce((sum, r) => sum + r.amount, 0))
+                                : "—"}
+                            </div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              {serviceRecords.length} {serviceRecords.length === 1 ? "entry" : "entries"}
+                            </div>
+                          </div>
+
+                          <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
+                            <div className="flex items-center gap-2">
+                              <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                                <CalendarClock className="size-3.5 text-primary" strokeWidth={2.2} />
+                              </div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Next service
+                              </div>
+                            </div>
+                            <div className="mt-2 text-lg font-semibold text-foreground">
+                              {km(serviceProgress(activeVehicle).remaining)}
+                            </div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              at {km(activeVehicle.nextServiceKm)}
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
                           <div className="flex items-center justify-between">
                             <div className="text-xs font-medium text-muted-foreground">
