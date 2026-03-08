@@ -47,6 +47,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   fetchVehicles,
   fetchServiceRecords,
   fetchBuildNotes,
@@ -725,28 +732,18 @@ function AddDocumentDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Type</Label>
-              <div className="flex gap-2">
-                {DOC_TYPES.map((t) => (
-                  <Button
-                    key={t.value}
-                    type="button"
-                    variant={form.type === t.value ? "default" : "outline"}
-                    className={
-                      form.type === t.value
-                        ? "flex-1 bg-primary text-primary-foreground"
-                        : "flex-1 border-border/70 bg-background/30"
-                    }
-                    onClick={() => update("type", t.value)}
-                  >
-                    {t.value === "insurance" ? (
-                      <ShieldCheck className="mr-1.5 size-3.5" />
-                    ) : (
-                      <FileText className="mr-1.5 size-3.5" />
-                    )}
-                    {t.label}
-                  </Button>
-                ))}
-              </div>
+              <Select value={form.type} onValueChange={(v) => update("type", v)}>
+                <SelectTrigger className="h-10 rounded-xl border-border/70 bg-background/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border/70 bg-card/95 backdrop-blur">
+                  {DOC_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value} className="rounded-lg">
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="doc-label">Label (optional)</Label>
