@@ -1,10 +1,12 @@
 import {
+  AlertTriangle,
   ArrowRight,
   Bike,
   CalendarClock,
   CheckCircle2,
   Gauge,
   Plus,
+  ShieldCheck,
   Sparkles,
   Wrench,
 } from "lucide-react";
@@ -14,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
-import { fetchCurrentUser, fetchVehicles } from "@/lib/api";
+import { fetchCurrentUser, fetchVehicles, fetchAllDocuments } from "@/lib/api";
+import type { VehicleDocument } from "@shared/schema";
 
 function km(n: number) {
   return n.toLocaleString("en-IN") + " km";
@@ -59,11 +62,37 @@ export default function Home() {
     retry: false,
   });
 
+  const { data: allDocuments = [] } = useQuery({
+    queryKey: ["allDocuments"],
+    queryFn: fetchAllDocuments,
+    enabled: !!user,
+    retry: false,
+  });
+
   const totalDistance = vehicles.reduce((sum, v) => sum + v.odoKm, 0);
   const nearestService =
     vehicles.length > 0
       ? Math.min(...vehicles.map((v) => Math.max(0, v.nextServiceKm - v.odoKm)))
       : 0;
+
+  // Documents expiring within 14 days or already expired
+  const urgentDocs = allDocuments.filter((doc) => {
+    const diffMs = new Date(doc.expiryDate).getTime() - Date.now();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays <= 14;
+  }).sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+
+  function docLabel(type: string) {
+    return type === "insurance" ? "Insurance" : type === "puc" ? "PUC" : type;
+  }
+
+  function docUrgencyText(doc: VehicleDocument) {
+    const diffMs = new Date(doc.expiryDate).getTime() - Date.now();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return { text: `Expired ${Math.abs(diffDays)}d ago`, expired: true };
+    if (diffDays === 0) return { text: "Expires today", expired: true };
+    return { text: `${diffDays}d left`, expired: false };
+  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -141,6 +170,36 @@ export default function Home() {
                   </Link>
                 </div>
               </div>
+
+              {urgentDocs.length > 0 && (
+                <div className="mt-8 w-full max-w-2xl mx-auto">
+                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 px-4 py-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="size-3.5" />
+                      Attention needed
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {urgentDocs.map((doc) => {
+                        const v = vehicles.find((v) => v.id === doc.vehicleId);
+                        const { text, expired } = docUrgencyText(doc);
+                        return (
+                          <Link key={doc.id} href="/garage">
+                            <div className={
+                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors hover:bg-amber-500/10 " +
+                              (expired
+                                ? "border-destructive/40 text-destructive"
+                                : "border-amber-500/40 text-amber-600 dark:text-amber-400")
+                            }>
+                              <ShieldCheck className="size-3" />
+                              {v?.nickname ?? "Vehicle"} · {docLabel(doc.type)} · {text}
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <StatPill

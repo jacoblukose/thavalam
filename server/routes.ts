@@ -1,8 +1,12 @@
 import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage";
-import { insertVehicleSchema, insertServiceRecordSchema } from "@shared/schema";
+import { insertVehicleSchema, insertServiceRecordSchema, insertVehicleDocumentSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
+import { uploadToSupabase, deleteFromSupabase } from "./supabase-storage";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.isAuthenticated()) {
@@ -148,6 +152,95 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error upserting build notes:", error);
       res.status(500).json({ error: "Failed to upsert build notes" });
+    }
+  });
+
+  // Documents — verify vehicle belongs to user
+  app.get("/api/vehicles/:vehicleId/documents", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      const docs = await storage.getDocuments(req.params.vehicleId);
+      res.json(docs);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
+  // All documents for user (for landing page alerts)
+  app.get("/api/documents", async (req, res) => {
+    try {
+      const docs = await storage.getDocumentsByUser(req.user!.id);
+      res.json(docs);
+    } catch (error) {
+      console.error("Error fetching all documents:", error);
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
+  app.post("/api/vehicles/:vehicleId/documents", upload.single("file") as any, async (req: any, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      let fileUrl: string | null = null;
+      let fileName: string | null = null;
+
+      if (req.file) {
+        fileName = req.file.originalname;
+        fileUrl = await uploadToSupabase(
+          req.file.buffer,
+          `${req.user!.id}/${req.params.vehicleId}/${Date.now()}-${fileName}`,
+          req.file.mimetype,
+        );
+      }
+
+      const result = insertVehicleDocumentSchema.safeParse({
+        vehicleId: req.params.vehicleId,
+        type: req.body.type,
+        label: req.body.label || null,
+        expiryDate: req.body.expiryDate,
+        fileUrl,
+        fileName,
+        notes: req.body.notes || null,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ error: fromError(result.error).toString() });
+      }
+
+      const doc = await storage.createDocument(result.data);
+      res.status(201).json(doc);
+    } catch (error) {
+      console.error("Error creating document:", error);
+      res.status(500).json({ error: "Failed to create document" });
+    }
+  });
+
+  app.delete("/api/vehicles/:vehicleId/documents/:docId", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      const docs = await storage.getDocuments(req.params.vehicleId);
+      const doc = docs.find(d => d.id === req.params.docId);
+      if (!doc) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (doc.fileUrl) {
+        await deleteFromSupabase(doc.fileUrl);
+      }
+      await storage.deleteDocument(req.params.docId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      res.status(500).json({ error: "Failed to delete document" });
     }
   });
 

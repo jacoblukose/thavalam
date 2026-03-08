@@ -4,9 +4,12 @@ import {
   type ServiceRecord,
   type InsertServiceRecord,
   type BuildNote,
+  type VehicleDocument,
+  type InsertVehicleDocument,
   vehicles,
   serviceRecords,
   buildNotes,
+  vehicleDocuments,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -26,6 +29,12 @@ export interface IStorage {
   // Build Notes
   getBuildNotes(vehicleId: string): Promise<BuildNote[]>;
   upsertBuildNotes(vehicleId: string, notes: Array<{ key: string; value: string }>): Promise<BuildNote[]>;
+
+  // Documents
+  getDocuments(vehicleId: string): Promise<VehicleDocument[]>;
+  getDocumentsByUser(userId: string): Promise<VehicleDocument[]>;
+  createDocument(doc: InsertVehicleDocument): Promise<VehicleDocument>;
+  deleteDocument(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -102,6 +111,40 @@ export class DbStorage implements IStorage {
     }));
 
     return await db.insert(buildNotes).values(insertData).returning();
+  }
+  async getDocuments(vehicleId: string): Promise<VehicleDocument[]> {
+    return await db
+      .select()
+      .from(vehicleDocuments)
+      .where(eq(vehicleDocuments.vehicleId, vehicleId))
+      .orderBy(desc(vehicleDocuments.createdAt));
+  }
+
+  async getDocumentsByUser(userId: string): Promise<VehicleDocument[]> {
+    const userVehicles = await db
+      .select({ id: vehicles.id })
+      .from(vehicles)
+      .where(eq(vehicles.userId, userId));
+    if (userVehicles.length === 0) return [];
+
+    const allDocs: VehicleDocument[] = [];
+    for (const v of userVehicles) {
+      const docs = await db
+        .select()
+        .from(vehicleDocuments)
+        .where(eq(vehicleDocuments.vehicleId, v.id));
+      allDocs.push(...docs);
+    }
+    return allDocs;
+  }
+
+  async createDocument(doc: InsertVehicleDocument): Promise<VehicleDocument> {
+    const [document] = await db.insert(vehicleDocuments).values(doc).returning();
+    return document;
+  }
+
+  async deleteDocument(id: string): Promise<void> {
+    await db.delete(vehicleDocuments).where(eq(vehicleDocuments.id, id));
   }
 }
 

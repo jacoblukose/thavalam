@@ -73,3 +73,23 @@ export const insertBuildNoteSchema = createInsertSchema(buildNotes).omit({
 
 export type InsertBuildNote = z.infer<typeof insertBuildNoteSchema>;
 export type BuildNote = typeof buildNotes.$inferSelect;
+
+export const vehicleDocuments = pgTable("vehicle_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vehicleId: varchar("vehicle_id").notNull().references(() => vehicles.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // "insurance" | "puc"
+  label: text("label"),
+  expiryDate: text("expiry_date").notNull(), // stored as ISO date string
+  fileUrl: text("file_url"),
+  fileName: text("file_name"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertVehicleDocumentSchema = createInsertSchema(vehicleDocuments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertVehicleDocument = z.infer<typeof insertVehicleDocumentSchema>;
+export type VehicleDocument = typeof vehicleDocuments.$inferSelect;

@@ -1,21 +1,26 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
+  AlertTriangle,
   ArrowRight,
   BadgeCheck,
   Bike,
   CalendarClock,
   CalendarIcon,
+  Camera,
   Car,
   CheckCircle2,
   ChevronLeft,
+  FileText,
   IndianRupee,
   Loader2,
   MapPin,
   Plus,
   Settings2,
+  ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   Wrench,
   X,
 } from "lucide-react";
@@ -45,16 +50,19 @@ import {
   fetchVehicles,
   fetchServiceRecords,
   fetchBuildNotes,
+  fetchDocuments,
   fetchCurrentUser,
   createVehicle,
   createServiceRecord,
+  createDocument,
   deleteVehicle,
+  deleteDocument,
   upsertBuildNotes,
 } from "@/lib/api";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
-import type { Vehicle, ServiceRecord, BuildNote } from "@shared/schema";
+import type { Vehicle, ServiceRecord, BuildNote, VehicleDocument } from "@shared/schema";
 
 const formatMoney = (n: number) =>
   n.toLocaleString("en-IN", { style: "currency", currency: "INR" });
@@ -570,11 +578,286 @@ function AddMaintenanceDialog({
   );
 }
 
+const DOC_TYPES = [
+  { value: "insurance", label: "Insurance" },
+  { value: "puc", label: "PUC / Pollution" },
+] as const;
+
+function docTypeLabel(type: string) {
+  return DOC_TYPES.find((d) => d.value === type)?.label ?? type;
+}
+
+function expiryStatus(expiryDate: string): { label: string; color: string; urgent: boolean } {
+  const now = new Date();
+  const expiry = new Date(expiryDate);
+  const diffMs = expiry.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: `Expired ${Math.abs(diffDays)}d ago`, color: "text-destructive", urgent: true };
+  if (diffDays === 0) return { label: "Expires today", color: "text-destructive", urgent: true };
+  if (diffDays <= 14) return { label: `${diffDays}d left`, color: "text-amber-500", urgent: true };
+  if (diffDays <= 30) return { label: `${diffDays}d left`, color: "text-muted-foreground", urgent: false };
+  return { label: format(expiry, "dd MMM yyyy"), color: "text-muted-foreground", urgent: false };
+}
+
+function DocumentCard({
+  doc,
+  vehicleId,
+}: {
+  doc: VehicleDocument;
+  vehicleId: string;
+}) {
+  const queryClient = useQueryClient();
+  const deleteMut = useMutation({
+    mutationFn: () => deleteDocument(vehicleId, doc.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents", vehicleId] }),
+  });
+
+  const status = expiryStatus(doc.expiryDate);
+  const isExpired = new Date(doc.expiryDate) < new Date();
+
+  return (
+    <div className={
+      "flex items-center gap-3 rounded-2xl border p-3 " +
+      (isExpired
+        ? "border-destructive/40 bg-destructive/5"
+        : "border-border/70 bg-background/20")
+    }>
+      <div className="grid size-9 shrink-0 place-items-center rounded-xl border border-border/70 bg-background/30">
+        {doc.type === "insurance" ? (
+          <ShieldCheck className="size-4 text-primary" strokeWidth={2.2} />
+        ) : (
+          <FileText className="size-4 text-primary" strokeWidth={2.2} />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-semibold text-foreground">
+            {docTypeLabel(doc.type)}
+          </div>
+          {doc.label && (
+            <div className="truncate text-xs text-muted-foreground">
+              — {doc.label}
+            </div>
+          )}
+        </div>
+        <div className={`text-xs font-medium ${status.color}`}>
+          {status.urgent && isExpired && <AlertTriangle className="mr-1 inline size-3" />}
+          {status.label}
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        {doc.fileUrl && (
+          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="ghost" size="icon" className="size-7">
+              <FileText className="size-3.5" />
+            </Button>
+          </a>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 text-destructive hover:bg-destructive/10"
+          onClick={() => {
+            if (confirm("Delete this document?")) deleteMut.mutate();
+          }}
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AddDocumentDialog({
+  open,
+  onOpenChange,
+  vehicleId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicleId: string;
+}) {
+  const queryClient = useQueryClient();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [file, setFile] = useState<File | null>(null);
+  const [form, setForm] = useState({
+    type: "insurance" as string,
+    label: "",
+    notes: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: Parameters<typeof createDocument>[1]) =>
+      createDocument(vehicleId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents", vehicleId] });
+      queryClient.invalidateQueries({ queryKey: ["allDocuments"] });
+      onOpenChange(false);
+      setForm({ type: "insurance", label: "", notes: "" });
+      setSelectedDate(undefined);
+      setFile(null);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDate) return;
+    mutation.mutate({
+      type: form.type,
+      label: form.label || undefined,
+      expiryDate: format(selectedDate, "yyyy-MM-dd"),
+      notes: form.notes || undefined,
+      file: file || undefined,
+    });
+  };
+
+  const update = (key: string, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add document</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Type</Label>
+              <div className="flex gap-2">
+                {DOC_TYPES.map((t) => (
+                  <Button
+                    key={t.value}
+                    type="button"
+                    variant={form.type === t.value ? "default" : "outline"}
+                    className={
+                      form.type === t.value
+                        ? "flex-1 bg-primary text-primary-foreground"
+                        : "flex-1 border-border/70 bg-background/30"
+                    }
+                    onClick={() => update("type", t.value)}
+                  >
+                    {t.value === "insurance" ? (
+                      <ShieldCheck className="mr-1.5 size-3.5" />
+                    ) : (
+                      <FileText className="mr-1.5 size-3.5" />
+                    )}
+                    {t.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="doc-label">Label (optional)</Label>
+              <Input
+                id="doc-label"
+                placeholder="e.g. ICICI Lombard"
+                value={form.label}
+                onChange={(e) => update("label", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Expiry date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={
+                      "h-10 w-full justify-start rounded-xl border-border/70 bg-background/30 text-left font-normal transition-colors hover:bg-secondary/60 " +
+                      (!selectedDate ? "text-muted-foreground" : "")
+                    }
+                  >
+                    <CalendarIcon className="mr-2 size-4 text-muted-foreground" />
+                    {selectedDate
+                      ? format(selectedDate, "dd MMM yyyy")
+                      : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto rounded-2xl border-border/70 bg-card/95 p-0 shadow-lg backdrop-blur"
+                  align="start"
+                >
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="doc-notes">Notes (optional)</Label>
+              <Input
+                id="doc-notes"
+                placeholder="e.g. Policy #12345"
+                value={form.notes}
+                onChange={(e) => update("notes", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Attach file or photo (optional)</Label>
+            <div className="flex gap-2">
+              <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-background/20 px-4 py-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/40">
+                <Upload className="size-4" />
+                {file ? file.name : "Choose file"}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+              </label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-background/20 px-4 py-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/40">
+                <Camera className="size-4" />
+                Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+              </label>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="mt-2 w-full bg-primary text-primary-foreground"
+            disabled={mutation.isPending || !selectedDate}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <FileText className="mr-2 size-4" />
+            )}
+            Add document
+          </Button>
+          {mutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to add document. Please try again.
+            </p>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Garage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showAddMaintenance, setShowAddMaintenance] = useState(false);
+  const [showAddDocument, setShowAddDocument] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -618,6 +901,12 @@ export default function Garage() {
   const { data: buildNotes = [] } = useQuery({
     queryKey: ["buildNotes", currentActiveId],
     queryFn: () => fetchBuildNotes(currentActiveId!),
+    enabled: !!currentActiveId,
+  });
+
+  const { data: documents = [] } = useQuery({
+    queryKey: ["documents", currentActiveId],
+    queryFn: () => fetchDocuments(currentActiveId!),
     enabled: !!currentActiveId,
   });
 
@@ -929,6 +1218,38 @@ export default function Garage() {
                           </div>
                         </div>
 
+                        {documents.length > 0 && (() => {
+                          const nearestDoc = documents.reduce((a, b) =>
+                            new Date(a.expiryDate) < new Date(b.expiryDate) ? a : b
+                          );
+                          const status = expiryStatus(nearestDoc.expiryDate);
+                          return (
+                            <div className={
+                              "rounded-3xl border p-3 flex items-center gap-3 " +
+                              (status.urgent
+                                ? "border-amber-500/40 bg-amber-500/5"
+                                : "border-border/70 bg-background/20")
+                            }>
+                              <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-border/70 bg-background/30">
+                                <ShieldCheck className="size-3.5 text-primary" strokeWidth={2.2} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-medium text-muted-foreground">
+                                  Nearest expiry
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-foreground">
+                                    {docTypeLabel(nearestDoc.type)}
+                                  </span>
+                                  <span className={`text-xs font-medium ${status.color}`}>
+                                    {status.label}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
                           <div className="flex items-center justify-between">
                             <div className="text-xs font-medium text-muted-foreground">
@@ -955,9 +1276,12 @@ export default function Garage() {
                         </div>
 
                         <Tabs defaultValue="history" className="w-full">
-                          <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-secondary/60">
+                          <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-secondary/60">
                             <TabsTrigger value="history" className="rounded-2xl">
                               History
+                            </TabsTrigger>
+                            <TabsTrigger value="documents" className="rounded-2xl">
+                              Docs
                             </TabsTrigger>
                             <TabsTrigger value="build" className="rounded-2xl">
                               Build
@@ -994,6 +1318,40 @@ export default function Garage() {
                                 >
                                   <Plus className="mr-2 size-4" />
                                   Add maintenance
+                                </Button>
+                              </>
+                            )}
+                          </TabsContent>
+
+                          <TabsContent value="documents" className="mt-4 space-y-3">
+                            {documents.length === 0 ? (
+                              <Card className="rounded-3xl border-border/70 bg-background/20 p-4">
+                                <div className="text-sm font-semibold">
+                                  No documents yet
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  Track insurance and PUC expiry dates, optionally attach photos or PDFs.
+                                </div>
+                                <Button
+                                  className="mt-3 w-full rounded-2xl bg-primary text-primary-foreground"
+                                  onClick={() => setShowAddDocument(true)}
+                                >
+                                  <FileText className="mr-2 size-4" />
+                                  Add document
+                                </Button>
+                              </Card>
+                            ) : (
+                              <>
+                                {documents.map((doc) => (
+                                  <DocumentCard key={doc.id} doc={doc} vehicleId={activeVehicle.id} />
+                                ))}
+                                <Button
+                                  variant="secondary"
+                                  className="w-full rounded-2xl bg-secondary/60"
+                                  onClick={() => setShowAddDocument(true)}
+                                >
+                                  <Plus className="mr-2 size-4" />
+                                  Add document
                                 </Button>
                               </>
                             )}
@@ -1045,11 +1403,18 @@ export default function Garage() {
 
       <AddVehicleDialog open={showAddVehicle} onOpenChange={setShowAddVehicle} />
       {currentActiveId && (
-        <AddMaintenanceDialog
-          open={showAddMaintenance}
-          onOpenChange={setShowAddMaintenance}
-          vehicleId={currentActiveId}
-        />
+        <>
+          <AddMaintenanceDialog
+            open={showAddMaintenance}
+            onOpenChange={setShowAddMaintenance}
+            vehicleId={currentActiveId}
+          />
+          <AddDocumentDialog
+            open={showAddDocument}
+            onOpenChange={setShowAddDocument}
+            vehicleId={currentActiveId}
+          />
+        </>
       )}
     </div>
   );
