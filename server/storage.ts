@@ -28,6 +28,8 @@ export interface IStorage {
   // Service Records
   getServiceRecords(vehicleId: string): Promise<ServiceRecord[]>;
   createServiceRecord(record: InsertServiceRecord): Promise<ServiceRecord>;
+  updateServiceRecord(id: string, updates: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
+  deleteServiceRecord(id: string): Promise<void>;
 
   // Build Notes
   getBuildNotes(vehicleId: string): Promise<BuildNote[]>;
@@ -125,6 +127,19 @@ export class DbStorage implements IStorage {
   async createServiceRecord(record: InsertServiceRecord): Promise<ServiceRecord> {
     const [serviceRecord] = await db.insert(serviceRecords).values(record).returning();
     return serviceRecord;
+  }
+
+  async updateServiceRecord(id: string, updates: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined> {
+    const [record] = await db
+      .update(serviceRecords)
+      .set(updates)
+      .where(eq(serviceRecords.id, id))
+      .returning();
+    return record;
+  }
+
+  async deleteServiceRecord(id: string): Promise<void> {
+    await db.delete(serviceRecords).where(eq(serviceRecords.id, id));
   }
 
   async getBuildNotes(vehicleId: string): Promise<BuildNote[]> {

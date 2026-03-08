@@ -12,6 +12,8 @@ vi.mock("../server/storage", () => ({
     isVehicleOwner: vi.fn(),
     getServiceRecords: vi.fn(),
     createServiceRecord: vi.fn(),
+    updateServiceRecord: vi.fn(),
+    deleteServiceRecord: vi.fn(),
     getBuildNotes: vi.fn(),
     upsertBuildNotes: vi.fn(),
     getDocuments: vi.fn(),
@@ -188,6 +190,46 @@ describe("Service record routes", () => {
     const res = await request(app, "GET", "/api/vehicles/v1/services");
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
+  });
+
+  it("PATCH /api/vehicles/:id/services/:svcId updates a record", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.updateServiceRecord.mockResolvedValue({ id: "s1", title: "Updated" });
+
+    const app = buildApp();
+    const res = await request(app, "PATCH", "/api/vehicles/v1/services/s1", {
+      title: "Updated",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe("Updated");
+  });
+
+  it("PATCH /api/vehicles/:id/services/:svcId returns 404 for unknown record", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.updateServiceRecord.mockResolvedValue(undefined);
+
+    const app = buildApp();
+    const res = await request(app, "PATCH", "/api/vehicles/v1/services/unknown", {
+      title: "Updated",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("DELETE /api/vehicles/:id/services/:svcId deletes a record", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.deleteServiceRecord.mockResolvedValue(undefined);
+
+    const app = buildApp();
+    const res = await request(app, "DELETE", "/api/vehicles/v1/services/s1");
+    expect(res.status).toBe(204);
+  });
+
+  it("DELETE /api/vehicles/:id/services/:svcId returns 404 for unknown vehicle", async () => {
+    mockStorage.getVehicle.mockResolvedValue(undefined);
+
+    const app = buildApp();
+    const res = await request(app, "DELETE", "/api/vehicles/v1/services/s1");
+    expect(res.status).toBe(404);
   });
 });
 

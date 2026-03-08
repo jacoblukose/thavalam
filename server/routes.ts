@@ -127,6 +127,41 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/vehicles/:vehicleId/services/:serviceId", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      const result = insertServiceRecordSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: fromError(result.error).toString() });
+      }
+      const record = await storage.updateServiceRecord(req.params.serviceId, result.data);
+      if (!record) {
+        return res.status(404).json({ error: "Service record not found" });
+      }
+      res.json(record);
+    } catch (error) {
+      console.error("Error updating service record:", error);
+      res.status(500).json({ error: "Failed to update service record" });
+    }
+  });
+
+  app.delete("/api/vehicles/:vehicleId/services/:serviceId", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      await storage.deleteServiceRecord(req.params.serviceId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting service record:", error);
+      res.status(500).json({ error: "Failed to delete service record" });
+    }
+  });
+
   // Build Notes — verify vehicle belongs to user
   app.get("/api/vehicles/:vehicleId/notes", async (req, res) => {
     try {

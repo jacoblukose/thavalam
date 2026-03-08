@@ -69,6 +69,8 @@ import {
   shareVehicle,
   unshareVehicle,
   updateVehicle,
+  updateServiceRecord,
+  deleteServiceRecord,
   deleteVehicle,
   deleteDocument,
   upsertBuildNotes,
@@ -167,7 +169,23 @@ function VehicleCard({
   );
 }
 
-function ServiceTable({ records }: { records: ServiceRecord[] }) {
+function ServiceTable({
+  records,
+  vehicleId,
+  onEdit,
+}: {
+  records: ServiceRecord[];
+  vehicleId: string;
+  onEdit: (record: ServiceRecord) => void;
+}) {
+  const queryClient = useQueryClient();
+  const deleteMut = useMutation({
+    mutationFn: (serviceId: string) => deleteServiceRecord(vehicleId, serviceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["serviceRecords", vehicleId] });
+    },
+  });
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-border/70">
       <table className="w-full text-left text-sm">
@@ -179,11 +197,12 @@ function ServiceTable({ records }: { records: ServiceRecord[] }) {
             <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Workshop</th>
             <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Items</th>
             <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">Cost</th>
+            <th className="w-16 px-2 py-2.5"></th>
           </tr>
         </thead>
         <tbody>
           {records.map((r) => (
-            <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-background/20">
+            <tr key={r.id} className="group border-b border-border/50 last:border-0 hover:bg-background/20">
               <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">{r.date}</td>
               <td className="px-4 py-2.5 text-xs font-semibold text-foreground">{r.title}</td>
               <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">{km(r.odometerKm)}</td>
@@ -193,6 +212,28 @@ function ServiceTable({ records }: { records: ServiceRecord[] }) {
               </td>
               <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-semibold text-foreground">
                 {r.amount === 0 ? "Free" : formatMoney(r.amount)}
+              </td>
+              <td className="px-2 py-2.5">
+                <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(r)}
+                    className="rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Delete "${r.title}"?`)) {
+                        deleteMut.mutate(r.id);
+                      }
+                    }}
+                    className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -735,6 +776,180 @@ function AddMaintenanceDialog({
   );
 }
 
+function EditMaintenanceDialog({
+  open,
+  onOpenChange,
+  vehicleId,
+  record,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicleId: string;
+  record: ServiceRecord;
+}) {
+  const queryClient = useQueryClient();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    record.date ? new Date(record.date) : undefined,
+  );
+  const [form, setForm] = useState({
+    title: record.title,
+    odometerKm: String(record.odometerKm),
+    amount: String(record.amount),
+    workshop: record.workshop,
+    items: record.items.join(", "),
+  });
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        title: record.title,
+        odometerKm: String(record.odometerKm),
+        amount: String(record.amount),
+        workshop: record.workshop,
+        items: record.items.join(", "),
+      });
+      setSelectedDate(record.date ? new Date(record.date) : undefined);
+    }
+  }, [open, record]);
+
+  const mutation = useMutation({
+    mutationFn: (updates: Parameters<typeof updateServiceRecord>[2]) =>
+      updateServiceRecord(vehicleId, record.id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["serviceRecords", vehicleId] });
+      onOpenChange(false);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDate) return;
+    mutation.mutate({
+      title: form.title,
+      date: format(selectedDate, "dd MMM yyyy"),
+      odometerKm: parseInt(form.odometerKm) || 0,
+      amount: parseInt(form.amount) || 0,
+      workshop: form.workshop,
+      items: form.items
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    });
+  };
+
+  const update = (key: string, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit maintenance</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          <div className="grid gap-2">
+            <Label htmlFor="edit-svc-title">Title</Label>
+            <Input
+              id="edit-svc-title"
+              value={form.title}
+              onChange={(e) => update("title", e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={
+                      "h-10 w-full justify-start rounded-xl border-border/70 bg-background/30 text-left font-normal transition-colors hover:bg-secondary/60 " +
+                      (!selectedDate ? "text-muted-foreground" : "")
+                    }
+                  >
+                    <CalendarIcon className="mr-2 size-4 text-muted-foreground" />
+                    {selectedDate
+                      ? format(selectedDate, "dd MMM yyyy")
+                      : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto rounded-2xl border-border/70 bg-card/95 p-0 shadow-lg backdrop-blur"
+                  align="start"
+                >
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-svc-workshop">Workshop</Label>
+              <Input
+                id="edit-svc-workshop"
+                value={form.workshop}
+                onChange={(e) => update("workshop", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-svc-odo">Odometer (km)</Label>
+              <Input
+                id="edit-svc-odo"
+                type="number"
+                value={form.odometerKm}
+                onChange={(e) => update("odometerKm", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-svc-amount">Amount</Label>
+              <Input
+                id="edit-svc-amount"
+                type="number"
+                value={form.amount}
+                onChange={(e) => update("amount", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-svc-items">Items (comma-separated)</Label>
+            <Input
+              id="edit-svc-items"
+              value={form.items}
+              onChange={(e) => update("items", e.target.value)}
+            />
+          </div>
+          <Button
+            type="submit"
+            className="mt-2 w-full bg-primary text-primary-foreground"
+            disabled={mutation.isPending || !selectedDate}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Pencil className="mr-2 size-4" />
+            )}
+            Save changes
+          </Button>
+          {mutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to update. Please try again.
+            </p>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const DOC_TYPES = [
   { value: "insurance", label: "Insurance" },
   { value: "puc", label: "PUC / Pollution" },
@@ -1092,6 +1307,7 @@ export default function Garage() {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showEditVehicle, setShowEditVehicle] = useState(false);
   const [showAddMaintenance, setShowAddMaintenance] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<ServiceRecord | null>(null);
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [defaultTab, setDefaultTab] = useState(() => {
@@ -1575,7 +1791,11 @@ export default function Garage() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            <ServiceTable records={serviceRecords} />
+                            <ServiceTable
+                              records={serviceRecords}
+                              vehicleId={currentActiveId!}
+                              onEdit={setEditingRecord}
+                            />
                             <Button
                               variant="secondary"
                               className="rounded-2xl bg-secondary/60"
@@ -1688,6 +1908,14 @@ export default function Garage() {
             onOpenChange={setShowAddMaintenance}
             vehicleId={currentActiveId}
           />
+          {editingRecord && (
+            <EditMaintenanceDialog
+              open={!!editingRecord}
+              onOpenChange={(open) => { if (!open) setEditingRecord(null); }}
+              vehicleId={currentActiveId}
+              record={editingRecord}
+            />
+          )}
           <AddDocumentDialog
             open={showAddDocument}
             onOpenChange={setShowAddDocument}

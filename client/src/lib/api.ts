@@ -89,6 +89,27 @@ export async function createServiceRecord(vehicleId: string, record: Omit<Insert
   return res.json();
 }
 
+export async function updateServiceRecord(
+  vehicleId: string,
+  serviceId: string,
+  updates: Partial<Omit<InsertServiceRecord, "vehicleId">>,
+): Promise<ServiceRecord> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/services/${serviceId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error("Failed to update service record");
+  return res.json();
+}
+
+export async function deleteServiceRecord(vehicleId: string, serviceId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/services/${serviceId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete service record");
+}
+
 export async function fetchBuildNotes(vehicleId: string): Promise<BuildNote[]> {
   const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/notes`);
   if (!res.ok) throw new Error("Failed to fetch build notes");
