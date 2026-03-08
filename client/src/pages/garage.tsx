@@ -51,6 +51,7 @@ import {
   deleteVehicle,
   upsertBuildNotes,
 } from "@/lib/api";
+import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import type { Vehicle, ServiceRecord, BuildNote } from "@shared/schema";
@@ -629,8 +630,8 @@ export default function Garage() {
   });
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <div className="relative overflow-hidden">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
         <div className="pointer-events-none absolute inset-0 rg-grid opacity-40" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(1200px_circle_at_15%_0%,hsl(var(--primary)/0.20),transparent_60%),radial-gradient(900px_circle_at_85%_20%,hsl(var(--accent)/0.18),transparent_55%),radial-gradient(800px_circle_at_50%_90%,hsl(var(--foreground)/0.06),transparent_60%)]" />
 
@@ -638,7 +639,7 @@ export default function Garage() {
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <div className="grid size-11 place-items-center rounded-2xl border border-border/80 bg-card/60 shadow-sm backdrop-blur">
-                <Bike className="size-5 text-primary" strokeWidth={2.2} />
+                <Logo className="size-6 text-primary" />
               </div>
               <div className="leading-tight">
                 <div className="rg-title text-base font-semibold">
@@ -672,7 +673,7 @@ export default function Garage() {
           </div>
         </header>
 
-        <main className="relative mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        <main className="relative flex-1 mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
           <div className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-5 shadow-md backdrop-blur md:p-7">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="max-w-xl">
@@ -764,7 +765,7 @@ export default function Garage() {
             {!user ? (
               <div className="mt-12 flex flex-col items-center gap-4 text-center">
                 <div className="grid size-16 place-items-center rounded-3xl border border-border/70 bg-background/30">
-                  <Bike className="size-7 text-muted-foreground" />
+                  <Logo className="size-7 text-muted-foreground" />
                 </div>
                 <div>
                   <div className="text-base font-semibold">Sign in to get started</div>
@@ -790,7 +791,7 @@ export default function Garage() {
             ) : allVehicles.length === 0 ? (
               <div className="mt-12 flex flex-col items-center gap-4 text-center">
                 <div className="grid size-16 place-items-center rounded-3xl border border-border/70 bg-background/30">
-                  <Bike className="size-7 text-muted-foreground" />
+                  <Logo className="size-7 text-muted-foreground" />
                 </div>
                 <div>
                   <div className="text-base font-semibold">No vehicles yet</div>

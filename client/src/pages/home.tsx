@@ -11,6 +11,7 @@ import {
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { fetchCurrentUser, fetchVehicles } from "@/lib/api";
@@ -74,7 +75,7 @@ export default function Home() {
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <div className="grid size-11 place-items-center rounded-2xl border border-border/80 bg-card/60 shadow-sm backdrop-blur">
-                <Bike className="size-5 text-primary" strokeWidth={2.2} />
+                <Logo className="size-6 text-primary" />
               </div>
               <div className="leading-tight">
                 <div className="rg-title text-base font-semibold">
