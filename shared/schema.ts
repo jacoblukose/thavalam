@@ -74,6 +74,15 @@ export const insertBuildNoteSchema = createInsertSchema(buildNotes).omit({
 export type InsertBuildNote = z.infer<typeof insertBuildNoteSchema>;
 export type BuildNote = typeof buildNotes.$inferSelect;
 
+export const vehicleShares = pgTable("vehicle_shares", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vehicleId: varchar("vehicle_id").notNull().references(() => vehicles.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type VehicleShare = typeof vehicleShares.$inferSelect;
+
 export const vehicleDocuments = pgTable("vehicle_documents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   vehicleId: varchar("vehicle_id").notNull().references(() => vehicles.id, { onDelete: "cascade" }),

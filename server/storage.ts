@@ -6,13 +6,16 @@ import {
   type BuildNote,
   type VehicleDocument,
   type InsertVehicleDocument,
+  type VehicleShare,
   vehicles,
   serviceRecords,
   buildNotes,
   vehicleDocuments,
+  vehicleShares,
+  users,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, or, desc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Vehicles
@@ -35,14 +38,37 @@ export interface IStorage {
   getDocumentsByUser(userId: string): Promise<VehicleDocument[]>;
   createDocument(doc: InsertVehicleDocument): Promise<VehicleDocument>;
   deleteDocument(id: string): Promise<void>;
+
+  // Sharing
+  canAccessVehicle(vehicleId: string, userId: string): Promise<boolean>;
+  isVehicleOwner(vehicleId: string, userId: string): Promise<boolean>;
+  getShares(vehicleId: string): Promise<Array<VehicleShare & { email: string; name: string; picture: string | null }>>;
+  shareVehicle(vehicleId: string, targetUserId: string): Promise<VehicleShare>;
+  unshareVehicle(vehicleId: string, targetUserId: string): Promise<void>;
+  findUserByEmail(email: string): Promise<{ id: string; email: string; name: string; picture: string | null } | undefined>;
 }
 
 export class DbStorage implements IStorage {
   async getVehicles(userId: string): Promise<Vehicle[]> {
+    // Get IDs of vehicles shared with this user
+    const shared = await db
+      .select({ vehicleId: vehicleShares.vehicleId })
+      .from(vehicleShares)
+      .where(eq(vehicleShares.userId, userId));
+    const sharedIds = shared.map((s) => s.vehicleId);
+
+    if (sharedIds.length === 0) {
+      return await db
+        .select()
+        .from(vehicles)
+        .where(eq(vehicles.userId, userId))
+        .orderBy(desc(vehicles.createdAt));
+    }
+
     return await db
       .select()
       .from(vehicles)
-      .where(eq(vehicles.userId, userId))
+      .where(or(eq(vehicles.userId, userId), inArray(vehicles.id, sharedIds)))
       .orderBy(desc(vehicles.createdAt));
   }
 
@@ -50,8 +76,15 @@ export class DbStorage implements IStorage {
     const [vehicle] = await db
       .select()
       .from(vehicles)
-      .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
-    return vehicle;
+      .where(eq(vehicles.id, id));
+    if (!vehicle) return undefined;
+    if (vehicle.userId === userId) return vehicle;
+    // Check if shared
+    const [share] = await db
+      .select()
+      .from(vehicleShares)
+      .where(and(eq(vehicleShares.vehicleId, id), eq(vehicleShares.userId, userId)));
+    return share ? vehicle : undefined;
   }
 
   async createVehicle(userId: string, insertVehicle: InsertVehicle): Promise<Vehicle> {
@@ -63,10 +96,14 @@ export class DbStorage implements IStorage {
   }
 
   async updateVehicle(id: string, userId: string, updates: Partial<InsertVehicle>): Promise<Vehicle | undefined> {
+    // Verify access (owner or shared)
+    const canAccess = await this.canAccessVehicle(id, userId);
+    if (!canAccess) return undefined;
+
     const [vehicle] = await db
       .update(vehicles)
       .set(updates)
-      .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)))
+      .where(eq(vehicles.id, id))
       .returning();
     return vehicle;
   }
@@ -121,14 +158,11 @@ export class DbStorage implements IStorage {
   }
 
   async getDocumentsByUser(userId: string): Promise<VehicleDocument[]> {
-    const userVehicles = await db
-      .select({ id: vehicles.id })
-      .from(vehicles)
-      .where(eq(vehicles.userId, userId));
-    if (userVehicles.length === 0) return [];
+    const allVehicles = await this.getVehicles(userId);
+    if (allVehicles.length === 0) return [];
 
     const allDocs: VehicleDocument[] = [];
-    for (const v of userVehicles) {
+    for (const v of allVehicles) {
       const docs = await db
         .select()
         .from(vehicleDocuments)
@@ -145,6 +179,59 @@ export class DbStorage implements IStorage {
 
   async deleteDocument(id: string): Promise<void> {
     await db.delete(vehicleDocuments).where(eq(vehicleDocuments.id, id));
+  }
+
+  async canAccessVehicle(vehicleId: string, userId: string): Promise<boolean> {
+    const v = await this.getVehicle(vehicleId, userId);
+    return !!v;
+  }
+
+  async isVehicleOwner(vehicleId: string, userId: string): Promise<boolean> {
+    const [vehicle] = await db
+      .select()
+      .from(vehicles)
+      .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, userId)));
+    return !!vehicle;
+  }
+
+  async getShares(vehicleId: string): Promise<Array<VehicleShare & { email: string; name: string; picture: string | null }>> {
+    const shares = await db
+      .select()
+      .from(vehicleShares)
+      .where(eq(vehicleShares.vehicleId, vehicleId));
+
+    const result = [];
+    for (const share of shares) {
+      const [user] = await db.select().from(users).where(eq(users.id, share.userId));
+      if (user) {
+        result.push({ ...share, email: user.email, name: user.name, picture: user.picture });
+      }
+    }
+    return result;
+  }
+
+  async shareVehicle(vehicleId: string, targetUserId: string): Promise<VehicleShare> {
+    // Check if already shared
+    const [existing] = await db
+      .select()
+      .from(vehicleShares)
+      .where(and(eq(vehicleShares.vehicleId, vehicleId), eq(vehicleShares.userId, targetUserId)));
+    if (existing) return existing;
+
+    const [share] = await db.insert(vehicleShares).values({ vehicleId, userId: targetUserId }).returning();
+    return share;
+  }
+
+  async unshareVehicle(vehicleId: string, targetUserId: string): Promise<void> {
+    await db
+      .delete(vehicleShares)
+      .where(and(eq(vehicleShares.vehicleId, vehicleId), eq(vehicleShares.userId, targetUserId)));
+  }
+
+  async findUserByEmail(email: string): Promise<{ id: string; email: string; name: string; picture: string | null } | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    if (!user) return undefined;
+    return { id: user.id, email: user.email, name: user.name, picture: user.picture };
   }
 }
 

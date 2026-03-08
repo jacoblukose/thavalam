@@ -79,6 +79,10 @@ export async function registerRoutes(
 
   app.delete("/api/vehicles/:id", async (req, res) => {
     try {
+      const isOwner = await storage.isVehicleOwner(req.params.id, req.user!.id);
+      if (!isOwner) {
+        return res.status(403).json({ error: "Only the owner can delete a vehicle" });
+      }
       await storage.deleteVehicle(req.params.id, req.user!.id);
       res.status(204).send();
     } catch (error) {
@@ -152,6 +156,60 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error upserting build notes:", error);
       res.status(500).json({ error: "Failed to upsert build notes" });
+    }
+  });
+
+  // Sharing — owner only
+  app.get("/api/vehicles/:vehicleId/shares", async (req, res) => {
+    try {
+      const isOwner = await storage.isVehicleOwner(req.params.vehicleId, req.user!.id);
+      if (!isOwner) {
+        return res.status(403).json({ error: "Only the owner can manage sharing" });
+      }
+      const shares = await storage.getShares(req.params.vehicleId);
+      res.json(shares);
+    } catch (error) {
+      console.error("Error fetching shares:", error);
+      res.status(500).json({ error: "Failed to fetch shares" });
+    }
+  });
+
+  app.post("/api/vehicles/:vehicleId/shares", async (req, res) => {
+    try {
+      const isOwner = await storage.isVehicleOwner(req.params.vehicleId, req.user!.id);
+      if (!isOwner) {
+        return res.status(403).json({ error: "Only the owner can manage sharing" });
+      }
+      const { email } = req.body;
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      const targetUser = await storage.findUserByEmail(email.trim().toLowerCase());
+      if (!targetUser) {
+        return res.status(404).json({ error: "No user found with that email. They need to sign in at least once first." });
+      }
+      if (targetUser.id === req.user!.id) {
+        return res.status(400).json({ error: "You can't share with yourself" });
+      }
+      const share = await storage.shareVehicle(req.params.vehicleId, targetUser.id);
+      res.status(201).json({ ...share, email: targetUser.email, name: targetUser.name, picture: targetUser.picture });
+    } catch (error) {
+      console.error("Error sharing vehicle:", error);
+      res.status(500).json({ error: "Failed to share vehicle" });
+    }
+  });
+
+  app.delete("/api/vehicles/:vehicleId/shares/:userId", async (req, res) => {
+    try {
+      const isOwner = await storage.isVehicleOwner(req.params.vehicleId, req.user!.id);
+      if (!isOwner) {
+        return res.status(403).json({ error: "Only the owner can manage sharing" });
+      }
+      await storage.unshareVehicle(req.params.vehicleId, req.params.userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error unsharing vehicle:", error);
+      res.status(500).json({ error: "Failed to unshare vehicle" });
     }
   });
 

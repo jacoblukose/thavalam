@@ -1,4 +1,4 @@
-import type { Vehicle, InsertVehicle, ServiceRecord, InsertServiceRecord, BuildNote, VehicleDocument } from "@shared/schema";
+import type { Vehicle, InsertVehicle, ServiceRecord, InsertServiceRecord, BuildNote, VehicleDocument, VehicleShare } from "@shared/schema";
 
 const API_BASE = "/api";
 
@@ -127,4 +127,33 @@ export async function deleteDocument(vehicleId: string, docId: string): Promise<
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete document");
+}
+
+export type ShareInfo = VehicleShare & { email: string; name: string; picture: string | null };
+
+export async function fetchShares(vehicleId: string): Promise<ShareInfo[]> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/shares`);
+  if (res.status === 403) return []; // not the owner
+  if (!res.ok) throw new Error("Failed to fetch shares");
+  return res.json();
+}
+
+export async function shareVehicle(vehicleId: string, email: string): Promise<ShareInfo> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/shares`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to share vehicle");
+  }
+  return res.json();
+}
+
+export async function unshareVehicle(vehicleId: string, userId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/shares/${userId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to remove share");
 }

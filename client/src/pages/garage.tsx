@@ -18,15 +18,18 @@ import {
   Plus,
   Settings2,
   ShieldCheck,
+  Share2,
   Sparkles,
   Trash2,
   Upload,
+  UserPlus,
   Wrench,
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -58,14 +61,18 @@ import {
   fetchServiceRecords,
   fetchBuildNotes,
   fetchDocuments,
+  fetchShares,
   fetchCurrentUser,
   createVehicle,
   createServiceRecord,
   createDocument,
+  shareVehicle,
+  unshareVehicle,
   deleteVehicle,
   deleteDocument,
   upsertBuildNotes,
 } from "@/lib/api";
+import type { ShareInfo } from "@/lib/api";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -849,6 +856,114 @@ function AddDocumentDialog({
   );
 }
 
+function ShareVehicleDialog({
+  open,
+  onOpenChange,
+  vehicleId,
+  vehicleName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicleId: string;
+  vehicleName: string;
+}) {
+  const queryClient = useQueryClient();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+
+  const { data: shares = [] } = useQuery({
+    queryKey: ["shares", vehicleId],
+    queryFn: () => fetchShares(vehicleId),
+    enabled: open,
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: (e: string) => shareVehicle(vehicleId, e),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shares", vehicleId] });
+      setEmail("");
+      setError("");
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const unshareMutation = useMutation({
+    mutationFn: (userId: string) => unshareVehicle(vehicleId, userId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shares", vehicleId] }),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!email.trim()) return;
+    shareMutation.mutate(email.trim().toLowerCase());
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Share "{vehicleName}"</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="flex gap-2 pt-2">
+          <Input
+            type="email"
+            placeholder="Enter email address"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(""); }}
+            className="h-10 flex-1 rounded-xl border-border/70 bg-background/30"
+          />
+          <Button
+            type="submit"
+            className="bg-primary text-primary-foreground"
+            disabled={shareMutation.isPending || !email.trim()}
+          >
+            {shareMutation.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <UserPlus className="size-4" />
+            )}
+          </Button>
+        </form>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+
+        <div className="mt-2 text-xs text-muted-foreground">
+          Shared users can view and edit this vehicle's data but cannot delete it or manage sharing.
+        </div>
+
+        {shares.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground">Shared with</div>
+            {shares.map((share) => (
+              <div key={share.userId} className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/20 px-3 py-2">
+                <Avatar className="size-8 rounded-lg">
+                  <AvatarImage src={share.picture ?? undefined} alt={share.name} />
+                  <AvatarFallback className="rounded-lg bg-primary/10 text-xs font-semibold text-primary">
+                    {share.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-semibold text-foreground">{share.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">{share.email}</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-destructive hover:bg-destructive/10"
+                  onClick={() => unshareMutation.mutate(share.userId)}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Garage() {
   const [activeId, setActiveId] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -858,6 +973,7 @@ export default function Garage() {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showAddMaintenance, setShowAddMaintenance] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [defaultTab, setDefaultTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("tab") || "history";
@@ -1158,18 +1274,30 @@ export default function Garage() {
                             <CheckCircle2 className="mr-1.5 size-4" />
                             {activeVehicle.health}%
                           </Badge>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                              if (confirm(`Delete "${activeVehicle.nickname}"?`)) {
-                                deleteMutation.mutate(activeVehicle.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                          {activeVehicle.userId === user?.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 hover:bg-primary/10"
+                              onClick={() => setShowShare(true)}
+                            >
+                              <Share2 className="size-4" />
+                            </Button>
+                          )}
+                          {activeVehicle.userId === user?.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                if (confirm(`Delete "${activeVehicle.nickname}"?`)) {
+                                  deleteMutation.mutate(activeVehicle.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -1408,6 +1536,14 @@ export default function Garage() {
             onOpenChange={setShowAddDocument}
             vehicleId={currentActiveId}
           />
+          {activeVehicle && (
+            <ShareVehicleDialog
+              open={showShare}
+              onOpenChange={setShowShare}
+              vehicleId={currentActiveId}
+              vehicleName={activeVehicle.nickname}
+            />
+          )}
         </>
       )}
     </div>
