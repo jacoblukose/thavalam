@@ -102,19 +102,21 @@ export default function Home() {
 
         <header className="relative">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
-              <div className="grid size-11 place-items-center rounded-2xl border border-border/80 bg-card/60 shadow-sm backdrop-blur">
-                <Logo className="size-6 text-primary" />
-              </div>
-              <div className="leading-tight">
-                <div className="rg-title text-base font-semibold">
-                  Thaavalam <span className="ml-1 text-lg font-normal text-muted-foreground" style={{ fontFamily: "'Noto Sans Malayalam', sans-serif" }}>/ താവളം</span>
+            <Link href="/">
+              <div className="flex items-center gap-3 cursor-pointer">
+                <div className="grid size-11 place-items-center rounded-2xl border border-border/80 bg-card/60 shadow-sm backdrop-blur">
+                  <Logo className="size-6 text-primary" />
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Your vehicles. Your mods. Your service story.
+                <div className="leading-tight">
+                  <div className="rg-title text-base font-semibold">
+                    Thaavalam <span className="ml-1 text-lg font-normal text-muted-foreground" style={{ fontFamily: "'Noto Sans Malayalam', sans-serif" }}>/ താവളം</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Your vehicles. Your mods. Your service story.
+                  </div>
                 </div>
               </div>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-2">
               <ThemeToggle />
