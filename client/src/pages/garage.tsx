@@ -45,12 +45,14 @@ import {
   fetchVehicles,
   fetchServiceRecords,
   fetchBuildNotes,
+  fetchCurrentUser,
   createVehicle,
   createServiceRecord,
   deleteVehicle,
   upsertBuildNotes,
 } from "@/lib/api";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import type { Vehicle, ServiceRecord, BuildNote } from "@shared/schema";
 
 const formatMoney = (n: number) =>
@@ -574,6 +576,13 @@ export default function Garage() {
   const [showAddMaintenance, setShowAddMaintenance] = useState(false);
   const queryClient = useQueryClient();
 
+  const { data: user } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: fetchCurrentUser,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const {
     data: allVehicles = [],
     isLoading,
@@ -581,6 +590,7 @@ export default function Garage() {
   } = useQuery({
     queryKey: ["vehicles"],
     queryFn: fetchVehicles,
+    enabled: !!user,
   });
 
   const vehicles = useMemo(() => {
@@ -655,6 +665,7 @@ export default function Garage() {
                 <Plus className="mr-2 size-4" />
                 Add
               </Button>
+              <UserMenu />
             </div>
           </div>
         </header>

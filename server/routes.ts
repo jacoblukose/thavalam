@@ -1,17 +1,27 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertVehicleSchema, insertServiceRecordSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // All vehicle routes require auth
+  app.use("/api/vehicles", requireAuth as RequestHandler);
+
   // Vehicles
   app.get("/api/vehicles", async (req, res) => {
     try {
-      const vehicles = await storage.getVehicles();
+      const vehicles = await storage.getVehicles(req.user!.id);
       res.json(vehicles);
     } catch (error) {
       console.error("Error fetching vehicles:", error);
@@ -21,7 +31,7 @@ export async function registerRoutes(
 
   app.get("/api/vehicles/:id", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.id);
+      const vehicle = await storage.getVehicle(req.params.id, req.user!.id);
       if (!vehicle) {
         return res.status(404).json({ error: "Vehicle not found" });
       }
@@ -38,7 +48,7 @@ export async function registerRoutes(
       if (!result.success) {
         return res.status(400).json({ error: fromError(result.error).toString() });
       }
-      const vehicle = await storage.createVehicle(result.data);
+      const vehicle = await storage.createVehicle(req.user!.id, result.data);
       res.status(201).json(vehicle);
     } catch (error) {
       console.error("Error creating vehicle:", error);
@@ -52,7 +62,7 @@ export async function registerRoutes(
       if (!result.success) {
         return res.status(400).json({ error: fromError(result.error).toString() });
       }
-      const vehicle = await storage.updateVehicle(req.params.id, result.data);
+      const vehicle = await storage.updateVehicle(req.params.id, req.user!.id, result.data);
       if (!vehicle) {
         return res.status(404).json({ error: "Vehicle not found" });
       }
@@ -65,7 +75,7 @@ export async function registerRoutes(
 
   app.delete("/api/vehicles/:id", async (req, res) => {
     try {
-      await storage.deleteVehicle(req.params.id);
+      await storage.deleteVehicle(req.params.id, req.user!.id);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting vehicle:", error);
@@ -73,9 +83,13 @@ export async function registerRoutes(
     }
   });
 
-  // Service Records
+  // Service Records — verify vehicle belongs to user
   app.get("/api/vehicles/:vehicleId/services", async (req, res) => {
     try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
       const records = await storage.getServiceRecords(req.params.vehicleId);
       res.json(records);
     } catch (error) {
@@ -86,6 +100,10 @@ export async function registerRoutes(
 
   app.post("/api/vehicles/:vehicleId/services", async (req, res) => {
     try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
       const result = insertServiceRecordSchema.safeParse({
         ...req.body,
         vehicleId: req.params.vehicleId,
@@ -101,9 +119,13 @@ export async function registerRoutes(
     }
   });
 
-  // Build Notes
+  // Build Notes — verify vehicle belongs to user
   app.get("/api/vehicles/:vehicleId/notes", async (req, res) => {
     try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
       const notes = await storage.getBuildNotes(req.params.vehicleId);
       res.json(notes);
     } catch (error) {
@@ -114,6 +136,10 @@ export async function registerRoutes(
 
   app.put("/api/vehicles/:vehicleId/notes", async (req, res) => {
     try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
       if (!Array.isArray(req.body)) {
         return res.status(400).json({ error: "Expected array of notes" });
       }

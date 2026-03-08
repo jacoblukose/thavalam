@@ -2,6 +2,24 @@ import type { Vehicle, InsertVehicle, ServiceRecord, InsertServiceRecord, BuildN
 
 const API_BASE = "/api";
 
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  picture: string | null;
+};
+
+export async function fetchCurrentUser(): Promise<AuthUser | null> {
+  const res = await fetch(`${API_BASE}/auth/me`);
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error("Failed to fetch user");
+  return res.json();
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_BASE}/auth/logout`, { method: "POST" });
+}
+
 export async function fetchVehicles(): Promise<Vehicle[]> {
   const res = await fetch(`${API_BASE}/vehicles`);
   if (!res.ok) throw new Error("Failed to fetch vehicles");

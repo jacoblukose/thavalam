@@ -3,8 +3,20 @@ import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core"
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  googleId: text("google_id").notNull().unique(),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  picture: text("picture"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type User = typeof users.$inferSelect;
+
 export const vehicles = pgTable("vehicles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   nickname: text("nickname").notNull(),
   model: text("model").notNull(),
   year: text("year").notNull(),
@@ -19,6 +31,7 @@ export const vehicles = pgTable("vehicles", {
 
 export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
