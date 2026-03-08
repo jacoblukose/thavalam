@@ -307,7 +307,6 @@ function AddVehicleDialog({
                 placeholder="12450"
                 value={form.odoKm}
                 onChange={(e) => update("odoKm", e.target.value)}
-                required
               />
             </div>
             <div className="grid gap-2">
@@ -318,7 +317,6 @@ function AddVehicleDialog({
                 placeholder="10000"
                 value={form.lastServiceKm}
                 onChange={(e) => update("lastServiceKm", e.target.value)}
-                required
               />
             </div>
             <div className="grid gap-2">
@@ -329,7 +327,6 @@ function AddVehicleDialog({
                 placeholder="15000"
                 value={form.nextServiceKm}
                 onChange={(e) => update("nextServiceKm", e.target.value)}
-                required
               />
             </div>
           </div>
@@ -341,7 +338,6 @@ function AddVehicleDialog({
                 placeholder="e.g. Bengaluru"
                 value={form.location}
                 onChange={(e) => update("location", e.target.value)}
-                required
               />
             </div>
             <div className="grid gap-2">
