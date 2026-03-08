@@ -1,6 +1,8 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import pg from "pg";
 import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { users } from "@shared/schema";
@@ -34,14 +36,26 @@ export function setupAuth(app: Express) {
     return;
   }
 
+  const PgStore = connectPgSimple(session);
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
+
   app.use(
     session({
+      store: new PgStore({
+        pool,
+        createTableIfMissing: true,
+      }),
       secret: process.env.SESSION_SECRET || "thavalam-session-secret",
       resave: false,
       saveUninitialized: false,
       cookie: {
         secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        sameSite: "lax",
       },
     })
   );
@@ -63,7 +77,6 @@ export function setupAuth(app: Express) {
           const name = profile.displayName ?? "";
           const picture = profile.photos?.[0]?.value ?? null;
 
-          // Find or create user
           let [user] = await db
             .select()
             .from(users)
@@ -75,7 +88,6 @@ export function setupAuth(app: Express) {
               .values({ googleId, email, name, picture })
               .returning();
           } else {
-            // Update profile info on each login
             [user] = await db
               .update(users)
               .set({ email, name, picture })
@@ -142,6 +154,7 @@ export function setupAuth(app: Express) {
         return res.status(500).json({ error: "Logout failed" });
       }
       req.session.destroy(() => {
+        res.clearCookie("connect.sid");
         res.json({ ok: true });
       });
     });

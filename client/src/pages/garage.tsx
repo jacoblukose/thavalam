@@ -642,7 +642,7 @@ export default function Garage() {
               </div>
               <div className="leading-tight">
                 <div className="rg-title text-base font-semibold">
-                  Thavalam
+                  Thaavalam <span className="ml-1 text-lg font-normal text-muted-foreground" style={{ fontFamily: "'Noto Sans Malayalam', sans-serif" }}>/ താവളം</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
                   One interface for all your vehicles.
@@ -658,13 +658,15 @@ export default function Garage() {
                   Home
                 </Button>
               </Link>
-              <Button
-                className="bg-primary text-primary-foreground"
-                onClick={() => setShowAddVehicle(true)}
-              >
-                <Plus className="mr-2 size-4" />
-                Add
-              </Button>
+              {user && (
+                <Button
+                  className="bg-primary text-primary-foreground"
+                  onClick={() => setShowAddVehicle(true)}
+                >
+                  <Plus className="mr-2 size-4" />
+                  Add
+                </Button>
+              )}
               <UserMenu />
             </div>
           </div>
@@ -688,25 +690,27 @@ export default function Garage() {
                 </p>
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  className="bg-primary text-primary-foreground"
-                  onClick={() => setShowAddVehicle(true)}
-                >
-                  <Plus className="mr-2 size-4" />
-                  Add vehicle
-                </Button>
-                {activeVehicle && (
+              {user && (
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
-                    variant="secondary"
-                    className="bg-secondary/60"
-                    onClick={() => setShowAddMaintenance(true)}
+                    className="bg-primary text-primary-foreground"
+                    onClick={() => setShowAddVehicle(true)}
                   >
-                    <Wrench className="mr-2 size-4" />
-                    Log maintenance
+                    <Plus className="mr-2 size-4" />
+                    Add vehicle
                   </Button>
-                )}
-              </div>
+                  {activeVehicle && (
+                    <Button
+                      variant="secondary"
+                      className="bg-secondary/60"
+                      onClick={() => setShowAddMaintenance(true)}
+                    >
+                      <Wrench className="mr-2 size-4" />
+                      Log maintenance
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3" aria-label="Quick stats">
@@ -757,7 +761,24 @@ export default function Garage() {
               </div>
             </div>
 
-            {isLoading ? (
+            {!user ? (
+              <div className="mt-12 flex flex-col items-center gap-4 text-center">
+                <div className="grid size-16 place-items-center rounded-3xl border border-border/70 bg-background/30">
+                  <Bike className="size-7 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-base font-semibold">Sign in to get started</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Log in with Google to add and manage your vehicles.
+                  </div>
+                </div>
+                <a href="/api/auth/google">
+                  <Button className="bg-primary text-primary-foreground">
+                    Sign in with Google
+                  </Button>
+                </a>
+              </div>
+            ) : isLoading ? (
               <div className="mt-12 flex items-center justify-center gap-3 text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
                 Loading vehicles...

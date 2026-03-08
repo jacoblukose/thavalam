@@ -43,6 +43,7 @@ export function UserMenu() {
   const handleLogout = async () => {
     await logout();
     queryClient.clear();
+    window.location.href = "/";
   };
 
   return (
