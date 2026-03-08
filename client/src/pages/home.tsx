@@ -5,10 +5,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Gauge,
-  Plus,
   ShieldCheck,
-  Sparkles,
-  Wrench,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -136,41 +133,13 @@ export default function Home() {
           <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
             <div className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-6 shadow-md backdrop-blur md:p-10">
               <div className="flex flex-col items-center text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/30 px-3 py-1 text-xs font-semibold text-foreground">
-                  <Sparkles className="size-3.5 text-primary" />
-                  Built for vehicle people
-                </div>
-                <h1 className="mt-5 rg-title max-w-2xl text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
-                  A super-clear garage for service history, upgrades, and
-                  intervals.
+                <h1 className="rg-title max-w-2xl text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
+                  A digital den for your vehicles.
                 </h1>
                 <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
-                  Keep every vehicle's story in one place — services, parts,
-                  accessories, and the next interval. Designed to be crisp on
-                  mobile, fast to scan, and easy to trust.
+                  Track every vehicle's services, parts, intervals, and
+                  documents in one place.
                 </p>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/garage">
-                    <Button
-                      size="lg"
-                      className="rounded-2xl bg-primary px-8 text-primary-foreground"
-                    >
-                      <Plus className="mr-2 size-5" />
-                      Add a vehicle
-                    </Button>
-                  </Link>
-                  <Link href="/garage">
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      className="rounded-2xl bg-secondary/60 px-8"
-                    >
-                      <Wrench className="mr-2 size-5" />
-                      Log maintenance
-                    </Button>
-                  </Link>
-                </div>
               </div>
 
               {urgentDocs.length > 0 && (
@@ -256,17 +225,6 @@ export default function Home() {
                 />
               </div>
 
-              <div className="mt-10 flex flex-col items-center gap-4 text-center">
-                <Link href="/garage">
-                  <Button
-                    size="lg"
-                    className="rounded-2xl bg-primary px-10 text-primary-foreground"
-                  >
-                    Open your garage
-                    <ArrowRight className="ml-2 size-5" />
-                  </Button>
-                </Link>
-              </div>
             </div>
           </div>
         </main>

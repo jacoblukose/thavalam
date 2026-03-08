@@ -1,4 +1,5 @@
-import { LogIn, LogOut, User } from "lucide-react";
+import { LogIn, LogOut, Settings, User } from "lucide-react";
+import { Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCurrentUser, logout } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,12 @@ export function UserMenu() {
           </div>
         </div>
         <DropdownMenuSeparator className="bg-border/70" />
+        <Link href="/profile">
+          <DropdownMenuItem className="gap-2 rounded-xl px-3 py-2 cursor-pointer">
+            <Settings className="size-4" />
+            Profile & Settings
+          </DropdownMenuItem>
+        </Link>
         <DropdownMenuItem
           onClick={handleLogout}
           className="gap-2 rounded-xl px-3 py-2 text-destructive focus:text-destructive cursor-pointer"

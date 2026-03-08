@@ -6,6 +6,7 @@ import type { Express, RequestHandler } from "express";
 import { db, pool } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { generateAlias, generateAvatarColor } from "./alias";
 
 declare module "express-session" {
   interface SessionData {
@@ -21,6 +22,10 @@ declare global {
       email: string;
       name: string;
       picture: string | null;
+      alias: string | null;
+      avatarColor: string | null;
+      currency: string;
+      timezone: string;
       createdAt: Date;
     }
   }
@@ -84,12 +89,25 @@ export function setupAuth(app: Express) {
           if (!user) {
             [user] = await db
               .insert(users)
-              .values({ googleId, email, name, picture })
+              .values({
+                googleId,
+                email,
+                name,
+                picture,
+                alias: generateAlias(),
+                avatarColor: generateAvatarColor(),
+              })
               .returning();
           } else {
+            // Backfill alias for existing users
+            const updates: Record<string, string> = { email, name };
+            if (picture) updates.picture = picture;
+            if (!user.alias) updates.alias = generateAlias();
+            if (!user.avatarColor) updates.avatarColor = generateAvatarColor();
+
             [user] = await db
               .update(users)
-              .set({ email, name, picture })
+              .set(updates)
               .where(eq(users.googleId, googleId))
               .returning();
           }
@@ -141,10 +159,45 @@ export function setupAuth(app: Express) {
         email: user.email,
         name: user.name,
         picture: user.picture,
+        alias: user.alias,
+        avatarColor: user.avatarColor,
+        currency: user.currency,
+        timezone: user.timezone,
       });
     } else {
       res.status(401).json({ error: "Not authenticated" });
     }
+  });
+
+  app.patch("/api/auth/profile", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const { currency, timezone } = req.body;
+    const updates: Record<string, string> = {};
+    if (currency && typeof currency === "string") updates.currency = currency;
+    if (timezone && typeof timezone === "string") updates.timezone = timezone;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No valid fields to update" });
+    }
+
+    const [updated] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, req.user!.id))
+      .returning();
+
+    res.json({
+      id: updated.id,
+      email: updated.email,
+      name: updated.name,
+      picture: updated.picture,
+      alias: updated.alias,
+      avatarColor: updated.avatarColor,
+      currency: updated.currency,
+      timezone: updated.timezone,
+    });
   });
 
   app.post("/api/auth/logout", (req, res) => {

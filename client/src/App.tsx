@@ -8,12 +8,14 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 
 import Garage from "@/pages/garage";
+import Profile from "@/pages/profile";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/garage" component={Garage} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -7,12 +7,26 @@ export type AuthUser = {
   email: string;
   name: string;
   picture: string | null;
+  alias: string | null;
+  avatarColor: string | null;
+  currency: string;
+  timezone: string;
 };
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
   const res = await fetch(`${API_BASE}/auth/me`);
   if (res.status === 401) return null;
   if (!res.ok) throw new Error("Failed to fetch user");
+  return res.json();
+}
+
+export async function updateProfile(updates: { currency?: string; timezone?: string }): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/auth/profile`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error("Failed to update profile");
   return res.json();
 }
 

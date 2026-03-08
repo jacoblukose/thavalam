@@ -9,6 +9,10 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   picture: text("picture"),
+  alias: text("alias"),
+  avatarColor: text("avatar_color"),
+  currency: text("currency").notNull().default("INR"),
+  timezone: text("timezone").notNull().default("Asia/Kolkata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
