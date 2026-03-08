@@ -119,7 +119,7 @@ export default function Home() {
                 <Link href="/garage">
                   <Button variant="secondary" className="bg-secondary/60">
                     <Wrench className="mr-2 size-4" />
-                    Log service
+                    Log maintenance
                   </Button>
                 </Link>
               </div>

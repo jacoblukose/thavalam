@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { format } from "date-fns";
 import {
   ArrowRight,
   BadgeCheck,
   Bike,
   CalendarClock,
+  CalendarIcon,
   Car,
   CheckCircle2,
   ChevronLeft,
@@ -26,12 +28,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   fetchVehicles,
   fetchServiceRecords,
@@ -386,7 +394,7 @@ function AddVehicleDialog({
   );
 }
 
-function AddServiceDialog({
+function AddMaintenanceDialog({
   open,
   onOpenChange,
   vehicleId,
@@ -396,9 +404,9 @@ function AddServiceDialog({
   vehicleId: string;
 }) {
   const queryClient = useQueryClient();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [form, setForm] = useState({
     title: "",
-    date: "",
     odometerKm: "",
     amount: "",
     workshop: "",
@@ -415,20 +423,21 @@ function AddServiceDialog({
       onOpenChange(false);
       setForm({
         title: "",
-        date: "",
         odometerKm: "",
         amount: "",
         workshop: "",
         items: "",
       });
+      setSelectedDate(undefined);
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedDate) return;
     mutation.mutate({
       title: form.title,
-      date: form.date,
+      date: format(selectedDate, "dd MMM yyyy"),
       odometerKm: parseInt(form.odometerKm) || 0,
       amount: parseInt(form.amount) || 0,
       workshop: form.workshop,
@@ -446,14 +455,14 @@ function AddServiceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Log service</DialogTitle>
+          <DialogTitle>Log maintenance</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
           <div className="grid gap-2">
             <Label htmlFor="svc-title">Title</Label>
             <Input
               id="svc-title"
-              placeholder="e.g. Periodic service (10,000 km)"
+              placeholder="e.g. Periodic maintenance (10,000 km)"
               value={form.title}
               onChange={(e) => update("title", e.target.value)}
               required
@@ -461,14 +470,35 @@ function AddServiceDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="svc-date">Date</Label>
-              <Input
-                id="svc-date"
-                placeholder="e.g. 07 Sep 2025"
-                value={form.date}
-                onChange={(e) => update("date", e.target.value)}
-                required
-              />
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={
+                      "h-10 w-full justify-start rounded-xl border-border/70 bg-background/30 text-left font-normal transition-colors hover:bg-secondary/60 " +
+                      (!selectedDate ? "text-muted-foreground" : "")
+                    }
+                  >
+                    <CalendarIcon className="mr-2 size-4 text-muted-foreground" />
+                    {selectedDate
+                      ? format(selectedDate, "dd MMM yyyy")
+                      : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto rounded-2xl border-border/70 bg-card/95 p-0 shadow-lg backdrop-blur"
+                  align="start"
+                >
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="svc-workshop">Workshop</Label>
@@ -516,18 +546,18 @@ function AddServiceDialog({
           <Button
             type="submit"
             className="mt-2 w-full bg-primary text-primary-foreground"
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !selectedDate}
           >
             {mutation.isPending ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
               <Wrench className="mr-2 size-4" />
             )}
-            Log service
+            Log maintenance
           </Button>
           {mutation.isError && (
             <p className="text-sm text-destructive">
-              Failed to log service. Please try again.
+              Failed to log maintenance. Please try again.
             </p>
           )}
         </form>
@@ -540,7 +570,7 @@ export default function Garage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
   const [showAddVehicle, setShowAddVehicle] = useState(false);
-  const [showAddService, setShowAddService] = useState(false);
+  const [showAddMaintenance, setShowAddMaintenance] = useState(false);
   const queryClient = useQueryClient();
 
   const {
@@ -658,10 +688,10 @@ export default function Garage() {
                   <Button
                     variant="secondary"
                     className="bg-secondary/60"
-                    onClick={() => setShowAddService(true)}
+                    onClick={() => setShowAddMaintenance(true)}
                   >
                     <Wrench className="mr-2 size-4" />
-                    Log service
+                    Log maintenance
                   </Button>
                 )}
               </div>
@@ -866,18 +896,18 @@ export default function Garage() {
                             {serviceRecords.length === 0 ? (
                               <Card className="rounded-3xl border-border/70 bg-background/20 p-4">
                                 <div className="text-sm font-semibold">
-                                  No service logs yet
+                                  No maintenance logs yet
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">
-                                  Add your first service entry to start building
+                                  Add your first maintenance entry to start building
                                   a trustworthy history.
                                 </div>
                                 <Button
                                   className="mt-3 w-full rounded-2xl bg-primary text-primary-foreground"
-                                  onClick={() => setShowAddService(true)}
+                                  onClick={() => setShowAddMaintenance(true)}
                                 >
                                   <Wrench className="mr-2 size-4" />
-                                  Add service
+                                  Add maintenance
                                 </Button>
                               </Card>
                             ) : (
@@ -888,10 +918,10 @@ export default function Garage() {
                                 <Button
                                   variant="secondary"
                                   className="w-full rounded-2xl bg-secondary/60"
-                                  onClick={() => setShowAddService(true)}
+                                  onClick={() => setShowAddMaintenance(true)}
                                 >
                                   <Plus className="mr-2 size-4" />
-                                  Add service
+                                  Add maintenance
                                 </Button>
                               </>
                             )}
@@ -943,9 +973,9 @@ export default function Garage() {
 
       <AddVehicleDialog open={showAddVehicle} onOpenChange={setShowAddVehicle} />
       {currentActiveId && (
-        <AddServiceDialog
-          open={showAddService}
-          onOpenChange={setShowAddService}
+        <AddMaintenanceDialog
+          open={showAddMaintenance}
+          onOpenChange={setShowAddMaintenance}
           vehicleId={currentActiveId}
         />
       )}
