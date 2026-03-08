@@ -36,6 +36,9 @@ export function setupAuth(app: Express) {
     return;
   }
 
+  // Trust Azure's reverse proxy so Express sees HTTPS
+  app.set("trust proxy", 1);
+
   const PgStore = connectPgSimple(session);
   const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
@@ -51,6 +54,7 @@ export function setupAuth(app: Express) {
       secret: process.env.SESSION_SECRET || "thavalam-session-secret",
       resave: false,
       saveUninitialized: false,
+      proxy: true,
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
