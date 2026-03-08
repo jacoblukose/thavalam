@@ -26,6 +26,7 @@ export const vehicles = pgTable("vehicles", {
   health: integer("health").notNull().default(100),
   location: text("location").notNull(),
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
+  status: text("status").notNull().default("owned"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -15,6 +15,7 @@ import {
   IndianRupee,
   Loader2,
   MapPin,
+  Pencil,
   Plus,
   Settings2,
   ShieldCheck,
@@ -67,6 +68,7 @@ import {
   createDocument,
   shareVehicle,
   unshareVehicle,
+  updateVehicle,
   deleteVehicle,
   deleteDocument,
   upsertBuildNotes,
@@ -114,89 +116,52 @@ function VehicleCard({
   active: boolean;
   onSelect: () => void;
 }) {
-  const { pct, remaining } = serviceProgress(v);
-
   return (
     <button
       type="button"
       onClick={onSelect}
       className={
-        "group relative w-full rounded-3xl border p-4 text-left shadow-sm transition-all active:scale-[0.99] md:p-5 " +
+        "group relative w-full rounded-2xl border px-4 py-3 text-left transition-all active:scale-[0.99] " +
         (active
           ? "border-primary/40 bg-gradient-to-b from-card to-card/60"
           : "border-border/80 bg-card/50 hover:border-border hover:bg-card/70")
       }
     >
-      <div className="absolute inset-0 -z-10 rounded-3xl opacity-0 transition-opacity group-hover:opacity-100">
-        <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(1000px_circle_at_20%_0%,hsl(var(--primary)/0.10),transparent_60%),radial-gradient(900px_circle_at_80%_30%,hsl(var(--accent)/0.10),transparent_55%)]" />
-      </div>
-
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rg-title text-base font-semibold text-foreground md:text-lg">
-              {v.nickname}
-            </div>
-            <Badge
-              variant={active ? "default" : "secondary"}
-              className={
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary/60 text-foreground"
-              }
-            >
-              {v.year}
-            </Badge>
-          </div>
-          <div className="mt-1 truncate text-sm text-muted-foreground">
-            {v.model}
+      <div className="flex items-center gap-3">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-border/80 bg-background/30">
+          <VehicleTypeIcon tags={v.tags} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="rg-title truncate text-sm font-semibold text-foreground">
+              {v.nickname || v.model}
+            </span>
+            {v.nickname && (
+              <span className="truncate text-xs text-muted-foreground">
+                {v.model}
+              </span>
+            )}
           </div>
         </div>
-
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <Badge
+          variant={active ? "default" : "secondary"}
+          className={
+            "shrink-0 text-xs " +
+            (active
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary/60 text-foreground")
+          }
+        >
+          {v.year}
+        </Badge>
+        {v.status === "sold" && (
           <Badge
             variant="outline"
-            className="border-border/70 bg-background/30 text-foreground"
+            className="shrink-0 border-amber-500/40 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400"
           >
-            <MapPin className="mr-1 size-3.5" />
-            {v.location}
+            Sold
           </Badge>
-          <div className="text-xs font-medium text-muted-foreground">
-            {km(v.odoKm)}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="text-xs font-medium text-muted-foreground">
-            Next service in{" "}
-            <span className="font-semibold text-foreground">
-              {km(remaining)}
-            </span>
-          </div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold text-foreground">
-            <span className="grid size-8 place-items-center rounded-xl border border-border/80 bg-background/30">
-              <VehicleTypeIcon tags={v.tags} />
-            </span>
-            {v.health}%
-          </div>
-        </div>
-
-        <div className="mt-2">
-          <Progress value={pct} className="h-2.5 bg-secondary/60" />
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {v.tags.map((t) => (
-            <span
-              key={t}
-              className="rounded-full border border-border/70 bg-background/30 px-2.5 py-1 text-xs font-medium text-foreground"
-            >
-              {t}
-            </span>
-          ))}
-        </div>
+        )}
       </div>
     </button>
   );
@@ -404,6 +369,196 @@ function AddVehicleDialog({
           {mutation.isError && (
             <p className="text-sm text-destructive">
               Failed to add vehicle. Please try again.
+            </p>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditVehicleDialog({
+  open,
+  onOpenChange,
+  vehicle,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicle: Vehicle;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    nickname: vehicle.nickname,
+    model: vehicle.model,
+    year: vehicle.year,
+    odoKm: String(vehicle.odoKm),
+    lastServiceKm: String(vehicle.lastServiceKm),
+    nextServiceKm: String(vehicle.nextServiceKm),
+    location: vehicle.location,
+    tags: vehicle.tags.join(", "),
+    status: vehicle.status,
+  });
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        nickname: vehicle.nickname,
+        model: vehicle.model,
+        year: vehicle.year,
+        odoKm: String(vehicle.odoKm),
+        lastServiceKm: String(vehicle.lastServiceKm),
+        nextServiceKm: String(vehicle.nextServiceKm),
+        location: vehicle.location,
+        tags: vehicle.tags.join(", "),
+        status: vehicle.status,
+      });
+    }
+  }, [open, vehicle]);
+
+  const mutation = useMutation({
+    mutationFn: (updates: Parameters<typeof updateVehicle>[1]) =>
+      updateVehicle(vehicle.id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      onOpenChange(false);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      nickname: form.nickname,
+      model: form.model,
+      year: form.year,
+      odoKm: parseInt(form.odoKm) || 0,
+      lastServiceKm: parseInt(form.lastServiceKm) || 0,
+      nextServiceKm: parseInt(form.nextServiceKm) || 0,
+      location: form.location,
+      tags: form.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      status: form.status,
+    });
+  };
+
+  const update = (key: string, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit vehicle</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          <div className="grid gap-2">
+            <Label htmlFor="edit-nickname">Nickname</Label>
+            <Input
+              id="edit-nickname"
+              value={form.nickname}
+              onChange={(e) => update("nickname", e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-model">Model</Label>
+              <Input
+                id="edit-model"
+                value={form.model}
+                onChange={(e) => update("model", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-year">Year</Label>
+              <Input
+                id="edit-year"
+                value={form.year}
+                onChange={(e) => update("year", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-odoKm">Odometer (km)</Label>
+              <Input
+                id="edit-odoKm"
+                type="number"
+                value={form.odoKm}
+                onChange={(e) => update("odoKm", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-lastServiceKm">Last service (km)</Label>
+              <Input
+                id="edit-lastServiceKm"
+                type="number"
+                value={form.lastServiceKm}
+                onChange={(e) => update("lastServiceKm", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-nextServiceKm">Next service (km)</Label>
+              <Input
+                id="edit-nextServiceKm"
+                type="number"
+                value={form.nextServiceKm}
+                onChange={(e) => update("nextServiceKm", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-location">Location</Label>
+              <Input
+                id="edit-location"
+                value={form.location}
+                onChange={(e) => update("location", e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-tags">Tags (comma-separated)</Label>
+              <Input
+                id="edit-tags"
+                value={form.tags}
+                onChange={(e) => update("tags", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-status">Ownership status</Label>
+            <Select value={form.status} onValueChange={(v) => update("status", v)}>
+              <SelectTrigger id="edit-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="owned">Owned</SelectItem>
+                <SelectItem value="sold">Sold</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="submit"
+            className="mt-2 w-full bg-primary text-primary-foreground"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Pencil className="mr-2 size-4" />
+            )}
+            Save changes
+          </Button>
+          {mutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to update vehicle. Please try again.
             </p>
           )}
         </form>
@@ -939,6 +1094,7 @@ export default function Garage() {
   });
   const [search, setSearch] = useState<string>("");
   const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [showEditVehicle, setShowEditVehicle] = useState(false);
   const [showAddMaintenance, setShowAddMaintenance] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -1228,8 +1384,20 @@ export default function Garage() {
                     {/* Header row with stats */}
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-muted-foreground">
-                          Selected vehicle
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-semibold text-muted-foreground">
+                            Selected vehicle
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={
+                              activeVehicle.status === "sold"
+                                ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                : "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            }
+                          >
+                            {activeVehicle.status === "sold" ? "Sold" : "Owned"}
+                          </Badge>
                         </div>
                         <div className="mt-1 rg-title text-xl font-semibold">
                           {activeVehicle.nickname}
@@ -1244,6 +1412,16 @@ export default function Garage() {
                           <CheckCircle2 className="mr-1.5 size-4" />
                           {activeVehicle.health}%
                         </Badge>
+                        {activeVehicle.userId === user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 hover:bg-primary/10"
+                            onClick={() => setShowEditVehicle(true)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        )}
                         {activeVehicle.userId === user?.id && (
                           <Button
                             variant="ghost"
@@ -1520,12 +1698,19 @@ export default function Garage() {
             vehicleId={currentActiveId}
           />
           {activeVehicle && (
-            <ShareVehicleDialog
-              open={showShare}
-              onOpenChange={setShowShare}
-              vehicleId={currentActiveId}
-              vehicleName={activeVehicle.nickname}
-            />
+            <>
+              <EditVehicleDialog
+                open={showEditVehicle}
+                onOpenChange={setShowEditVehicle}
+                vehicle={activeVehicle}
+              />
+              <ShareVehicleDialog
+                open={showShare}
+                onOpenChange={setShowShare}
+                vehicleId={currentActiveId}
+                vehicleName={activeVehicle.nickname}
+              />
+            </>
           )}
         </>
       )}

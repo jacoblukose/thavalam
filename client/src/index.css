@@ -177,51 +177,51 @@
   --elevate-1: rgba(255, 255, 255, 0.045);
   --elevate-2: rgba(255, 255, 255, 0.08);
 
-  /* Dark palette (mellow contrast) */
-  --background: 222 22% 9%;
-  --foreground: 0 0% 93%;
+  /* Dark palette */
+  --background: 222 20% 11%;
+  --foreground: 0 0% 96%;
 
-  --card: 223 20% 12%;
-  --card-foreground: 0 0% 94%;
-  --card-border: 222 14% 22%;
+  --card: 223 18% 14%;
+  --card-foreground: 0 0% 96%;
+  --card-border: 222 12% 26%;
 
-  --border: 222 12% 22%;
-  --input: 222 12% 26%;
+  --border: 222 10% 26%;
+  --input: 222 10% 28%;
   --ring: 38 80% 55%;
 
-  --popover: 223 20% 12%;
-  --popover-foreground: 0 0% 94%;
-  --popover-border: 222 14% 22%;
+  --popover: 223 18% 14%;
+  --popover-foreground: 0 0% 96%;
+  --popover-border: 222 12% 26%;
 
-  --primary: 38 86% 54%;
+  --primary: 38 86% 56%;
   --primary-foreground: 222 22% 10%;
 
-  --secondary: 222 16% 16%;
-  --secondary-foreground: 0 0% 92%;
+  --secondary: 222 14% 19%;
+  --secondary-foreground: 0 0% 95%;
 
-  --muted: 222 14% 15%;
-  --muted-foreground: 220 10% 72%;
+  --muted: 222 12% 18%;
+  --muted-foreground: 220 8% 64%;
 
-  --accent: 198 78% 54%;
+  --accent: 198 78% 56%;
   --accent-foreground: 222 22% 10%;
 
-  --destructive: 0 72% 54%;
-  --destructive-foreground: 0 0% 96%;
+  --destructive: 0 72% 56%;
+  --destructive-foreground: 0 0% 98%;
 
-  --chart-1: 38 96% 57%;
-  --chart-2: 199 92% 52%;
-  --chart-3: 164 84% 40%;
-  --chart-4: 270 80% 62%;
-  --chart-5: 0 84% 58%;
+  --chart-1: 38 96% 59%;
+  --chart-2: 199 92% 55%;
+  --chart-3: 164 84% 43%;
+  --chart-4: 270 80% 65%;
+  --chart-5: 0 84% 60%;
 
-  --sidebar: 223 28% 9%;
+  --sidebar: 223 24% 10%;
   --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 222 20% 18%;
-  --sidebar-primary: 38 96% 57%;
+  --sidebar-border: 222 16% 22%;
+  --sidebar-primary: 38 96% 59%;
   --sidebar-primary-foreground: 222 34% 6%;
-  --sidebar-accent: 222 22% 14%;
+  --sidebar-accent: 222 18% 17%;
   --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-ring: 38 96% 57%;
+  --sidebar-ring: 38 96% 59%;
 
   --shadow-2xs: 0 1px 0 0 hsl(0 0% 100% / 0.05);
   --shadow-xs: 0 1px 0 0 hsl(0 0% 100% / 0.06);
