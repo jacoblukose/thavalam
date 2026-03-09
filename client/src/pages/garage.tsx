@@ -149,9 +149,6 @@ function VehicleCard({
       }
     >
       <div className="flex items-center gap-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-border/80 bg-background/30">
-          <VehicleTypeIcon tags={v.tags} />
-        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="rg-title truncate text-sm font-semibold text-foreground">
@@ -2100,14 +2097,15 @@ export default function Garage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-4 flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
                     {vehicles.map((v) => (
-                      <VehicleCard
-                        key={v.id}
-                        v={v}
-                        active={v.id === currentActiveId}
-                        onSelect={() => setActiveId(v.id)}
-                      />
+                      <div key={v.id} className="min-w-[220px] max-w-[280px] flex-shrink-0">
+                        <VehicleCard
+                          v={v}
+                          active={v.id === currentActiveId}
+                          onSelect={() => setActiveId(v.id)}
+                        />
+                      </div>
                     ))}
                   </div>
                 </section>
