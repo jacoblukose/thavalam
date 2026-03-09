@@ -70,6 +70,9 @@ export const buildNotes = pgTable("build_notes", {
   vehicleId: varchar("vehicle_id").notNull().references(() => vehicles.id, { onDelete: "cascade" }),
   key: text("key").notNull(),
   value: text("value").notNull(),
+  date: text("date"),
+  cost: integer("cost"), // minor currency units (paise/cents)
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

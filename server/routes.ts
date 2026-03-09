@@ -29,6 +29,9 @@ const upload = multer({
 const buildNoteSchema = z.object({
   key: z.string().min(1).max(200),
   value: z.string().max(2000),
+  date: z.string().nullable().optional(),
+  cost: z.number().int().nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
 });
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {

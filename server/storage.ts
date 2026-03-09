@@ -36,7 +36,7 @@ export interface IStorage {
 
   // Build Notes
   getBuildNotes(vehicleId: string): Promise<BuildNote[]>;
-  upsertBuildNotes(vehicleId: string, notes: Array<{ key: string; value: string }>): Promise<BuildNote[]>;
+  upsertBuildNotes(vehicleId: string, notes: Array<{ key: string; value: string; date?: string | null; cost?: number | null; notes?: string | null }>): Promise<BuildNote[]>;
 
   // Documents
   getDocuments(vehicleId: string): Promise<VehicleDocument[]>;
@@ -161,7 +161,7 @@ export class DbStorage implements IStorage {
 
   async upsertBuildNotes(
     vehicleId: string,
-    notes: Array<{ key: string; value: string }>,
+    notes: Array<{ key: string; value: string; date?: string | null; cost?: number | null; notes?: string | null }>,
   ): Promise<BuildNote[]> {
     await db.delete(buildNotes).where(eq(buildNotes.vehicleId, vehicleId));
 
@@ -173,6 +173,9 @@ export class DbStorage implements IStorage {
       vehicleId,
       key: note.key,
       value: note.value,
+      date: note.date ?? null,
+      cost: note.cost ?? null,
+      notes: note.notes ?? null,
     }));
 
     return await db.insert(buildNotes).values(insertData).returning();

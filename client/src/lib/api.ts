@@ -116,7 +116,7 @@ export async function fetchBuildNotes(vehicleId: string): Promise<BuildNote[]> {
   return res.json();
 }
 
-export async function upsertBuildNotes(vehicleId: string, notes: Array<{ key: string; value: string }>): Promise<BuildNote[]> {
+export async function upsertBuildNotes(vehicleId: string, notes: Array<{ key: string; value: string; date?: string | null; cost?: number | null; notes?: string | null }>): Promise<BuildNote[]> {
   const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/notes`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
