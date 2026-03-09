@@ -2200,8 +2200,13 @@ export default function Garage() {
                           : null;
                         return (
                           <div className={`rounded-3xl border p-4 ${overdue ? "border-amber-500/40 bg-amber-500/5" : "border-border/70 bg-background/20"}`}>
-                            <div className="text-xs font-medium text-muted-foreground mb-2">Service due</div>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                                <Wrench className="size-3.5 text-primary" strokeWidth={2.2} />
+                              </div>
+                              <div className="text-xs font-medium text-muted-foreground">Service due</div>
+                            </div>
+                            <div className="mt-2 flex items-center justify-between">
                               <div className={`text-lg font-semibold ${overdue ? "text-amber-500" : "text-foreground"}`}>{km(sp.remainingKm)} left</div>
                               {dueText && <div className={`text-lg font-semibold ${overdue ? "text-amber-500" : "text-foreground"}`}>{dueText}</div>}
                             </div>
@@ -2220,76 +2225,56 @@ export default function Garage() {
                         const status = expiryStatus(nearestDoc.expiryDate);
                         return (
                           <div className={
-                            "rounded-3xl border p-4 flex items-center gap-3 " +
+                            "rounded-3xl border p-4 " +
                             (status.urgent
                               ? "border-amber-500/40 bg-amber-500/5"
                               : "border-border/70 bg-background/20")
                           }>
-                            <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-border/70 bg-background/30">
-                              <ShieldCheck className="size-3.5 text-primary" strokeWidth={2.2} />
-                            </div>
-                            <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                                <ShieldCheck className="size-3.5 text-primary" strokeWidth={2.2} />
+                              </div>
                               <div className="text-xs font-medium text-muted-foreground">
                                 Nearest expiry
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-foreground">
-                                  {docTypeLabel(nearestDoc.type)}
-                                </span>
-                                <span className={`text-xs font-medium ${status.color}`}>
-                                  {status.label}
-                                </span>
-                              </div>
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="text-lg font-semibold text-foreground">
+                                {docTypeLabel(nearestDoc.type)}
+                              </span>
+                              <span className={`text-xs font-medium ${status.color}`}>
+                                {status.label}
+                              </span>
                             </div>
                           </div>
                         );
                       })()}
 
-                      <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
-                            <IndianRupee className="size-3.5 text-primary" strokeWidth={2.2} />
+                      {(() => {
+                        const historyCost = serviceRecords.reduce((s, r) => s + r.amount, 0); // whole rupees
+                        const fuelCost = fuelLogsList.reduce((s, l) => s + l.cost, 0) / 100; // paise → rupees
+                        const buildCost = buildNotes.reduce((s, n) => s + (n.cost ?? 0), 0) / 100; // paise → rupees
+                        const totalCost = historyCost + fuelCost + buildCost;
+                        return (
+                          <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
+                            <div className="flex items-center gap-2">
+                              <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                                <IndianRupee className="size-3.5 text-primary" strokeWidth={2.2} />
+                              </div>
+                              <div className="text-xs font-medium text-muted-foreground">Total cost</div>
+                            </div>
+                            <div className="mt-2 text-lg font-semibold text-foreground">
+                              {totalCost > 0 ? formatMoney(totalCost) : "—"}
+                            </div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              {serviceRecords.length + fuelLogsList.length + buildNotes.filter(n => n.cost).length} {serviceRecords.length + fuelLogsList.length + buildNotes.filter(n => n.cost).length === 1 ? "entry" : "entries"}
+                            </div>
                           </div>
-                          <div className="text-xs font-medium text-muted-foreground">Total cost</div>
-                        </div>
-                        <div className="mt-2 text-lg font-semibold text-foreground">
-                          {serviceRecords.length > 0 ? formatMoney(serviceRecords.reduce((sum, r) => sum + r.amount, 0)) : "—"}
-                        </div>
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          {serviceRecords.length} {serviceRecords.length === 1 ? "entry" : "entries"}
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                     </div>
 
-                    {/* Cost summary */}
-                    {(() => {
-                      const historyCost = serviceRecords.reduce((s, r) => s + r.amount, 0);
-                      const fuelCost = fuelLogsList.reduce((s, l) => s + l.cost, 0);
-                      const buildCost = buildNotes.reduce((s, n) => s + (n.cost ?? 0), 0);
-                      const totalCost = historyCost + fuelCost + buildCost;
-                      if (totalCost === 0) return null;
-                      return (
-                        <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                          <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
-                            <div className="text-xs text-muted-foreground">Total spent</div>
-                            <div className="text-sm font-semibold">₹{(totalCost / 100).toFixed(2)}</div>
-                          </div>
-                          <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
-                            <div className="text-xs text-muted-foreground">Service</div>
-                            <div className="text-sm font-semibold">₹{(historyCost / 100).toFixed(2)}</div>
-                          </div>
-                          <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
-                            <div className="text-xs text-muted-foreground">Fuel</div>
-                            <div className="text-sm font-semibold">₹{(fuelCost / 100).toFixed(2)}</div>
-                          </div>
-                          <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
-                            <div className="text-xs text-muted-foreground">Build</div>
-                            <div className="text-sm font-semibold">₹{(buildCost / 100).toFixed(2)}</div>
-                          </div>
-                        </div>
-                      );
-                    })()}
 
                     {/* Tabs — full-width with tables */}
                     <Tabs defaultValue={defaultTab} className="mt-5 w-full">
