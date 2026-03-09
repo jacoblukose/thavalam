@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import { fetchCurrentUser, updateProfile } from "@/lib/api";
 
@@ -107,6 +108,7 @@ export default function Profile() {
               </div>
             </Link>
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <ThemeToggle />
               <UserMenu />
             </div>

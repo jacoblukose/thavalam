@@ -1,4 +1,4 @@
-import type { Vehicle, InsertVehicle, ServiceRecord, InsertServiceRecord, BuildNote, VehicleDocument, VehicleShare, FuelLog, InsertFuelLog } from "@shared/schema";
+import type { Vehicle, InsertVehicle, ServiceRecord, InsertServiceRecord, BuildNote, VehicleDocument, VehicleShare, FuelLog, InsertFuelLog, Notification } from "@shared/schema";
 
 const API_BASE = "/api";
 
@@ -228,4 +228,23 @@ export async function deleteFuelLog(vehicleId: string, logId: string): Promise<v
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete fuel log");
+}
+
+export async function fetchNotifications(): Promise<Notification[]> {
+  const res = await fetch(`${API_BASE}/notifications`);
+  if (res.status === 401) return [];
+  if (!res.ok) throw new Error("Failed to fetch notifications");
+  return res.json();
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await fetch(`${API_BASE}/notifications/${id}/read`, { method: "PATCH" });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await fetch(`${API_BASE}/notifications/read-all`, { method: "POST" });
+}
+
+export async function clearNotifications(): Promise<void> {
+  await fetch(`${API_BASE}/notifications`, { method: "DELETE" });
 }

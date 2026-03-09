@@ -136,3 +136,16 @@ export const insertFuelLogSchema = createInsertSchema(fuelLogs).omit({
 
 export type InsertFuelLog = z.infer<typeof insertFuelLogSchema>;
 export type FuelLog = typeof fuelLogs.$inferSelect;
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // "vehicle_shared" | ...
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  read: boolean("read").notNull().default(false),
+  metadata: text("metadata"), // JSON string for extra data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;

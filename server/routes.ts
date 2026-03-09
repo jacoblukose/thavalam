@@ -263,6 +263,14 @@ export async function registerRoutes(
         return res.status(400).json({ error: "You can't share with yourself" });
       }
       const share = await storage.shareVehicle(req.params.vehicleId, targetUser.id);
+      // Notify the target user
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      await storage.createNotification(
+        targetUser.id,
+        "vehicle_shared",
+        "Vehicle shared with you",
+        `${req.user!.name} shared "${vehicle?.nickname || vehicle?.model || "a vehicle"}" with you.`,
+      );
       res.status(201).json({ ...share, email: targetUser.email, name: targetUser.name, picture: targetUser.picture });
     } catch (error) {
       console.error("Error sharing vehicle:", error);
@@ -447,6 +455,47 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting fuel log:", error);
       res.status(500).json({ error: "Failed to delete fuel log" });
+    }
+  });
+
+  // Notifications
+  app.get("/api/notifications", async (req, res) => {
+    try {
+      const notifs = await storage.getNotifications(req.user!.id);
+      res.json(notifs);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", async (req, res) => {
+    try {
+      await storage.markNotificationRead(req.params.id, req.user!.id);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error marking notification read:", error);
+      res.status(500).json({ error: "Failed to mark notification read" });
+    }
+  });
+
+  app.post("/api/notifications/read-all", async (req, res) => {
+    try {
+      await storage.markAllNotificationsRead(req.user!.id);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error marking all notifications read:", error);
+      res.status(500).json({ error: "Failed to mark all read" });
+    }
+  });
+
+  app.delete("/api/notifications", async (req, res) => {
+    try {
+      await storage.clearNotifications(req.user!.id);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+      res.status(500).json({ error: "Failed to clear notifications" });
     }
   });
 

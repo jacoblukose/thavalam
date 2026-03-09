@@ -84,6 +84,7 @@ import {
 import type { ShareInfo } from "@/lib/api";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import type { Vehicle, ServiceRecord, BuildNote, VehicleDocument, FuelLog } from "@shared/schema";
 
@@ -1937,6 +1938,7 @@ export default function Garage() {
             </Link>
 
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <ThemeToggle />
               <Link href="/">
                 <Button variant="secondary" className="bg-secondary/60">
