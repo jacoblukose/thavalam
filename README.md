@@ -165,6 +165,7 @@ session (connect-pg-simple)
 | `DATABASE_URL` | Yes | PostgreSQL connection string (Supabase) |
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth client secret |
+| `SUPABASE_URL` | Yes | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | Yes | Supabase service role key (for file storage) |
-| `SESSION_SECRET` | No | Session encryption key (has default) |
+| `SESSION_SECRET` | Yes (prod) | Session encryption key (required in production) |
 | `PORT` | No | Server port (default: 5000) |

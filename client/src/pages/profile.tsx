@@ -101,7 +101,7 @@ export default function Profile() {
                 </div>
                 <div className="leading-tight">
                   <div className="rg-title text-base font-semibold">
-                    Thaavalam <span className="ml-1 text-lg font-normal text-muted-foreground" style={{ fontFamily: "'Noto Sans Malayalam', sans-serif" }}>/ താവളം</span>
+                    Pocket Garage
                   </div>
                 </div>
               </div>

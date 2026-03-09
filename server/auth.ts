@@ -51,7 +51,9 @@ export function setupAuth(app: Express) {
         pool,
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "thavalam-session-secret",
+      secret: process.env.SESSION_SECRET || (process.env.NODE_ENV === "production"
+        ? (() => { throw new Error("SESSION_SECRET must be set in production"); })()
+        : "thavalam-dev-secret"),
       resave: false,
       saveUninitialized: false,
       proxy: true,

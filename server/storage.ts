@@ -28,8 +28,8 @@ export interface IStorage {
   // Service Records
   getServiceRecords(vehicleId: string): Promise<ServiceRecord[]>;
   createServiceRecord(record: InsertServiceRecord): Promise<ServiceRecord>;
-  updateServiceRecord(id: string, updates: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
-  deleteServiceRecord(id: string): Promise<void>;
+  updateServiceRecord(id: string, vehicleId: string, updates: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
+  deleteServiceRecord(id: string, vehicleId: string): Promise<boolean>;
 
   // Build Notes
   getBuildNotes(vehicleId: string): Promise<BuildNote[]>;
@@ -129,17 +129,21 @@ export class DbStorage implements IStorage {
     return serviceRecord;
   }
 
-  async updateServiceRecord(id: string, updates: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined> {
+  async updateServiceRecord(id: string, vehicleId: string, updates: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined> {
     const [record] = await db
       .update(serviceRecords)
       .set(updates)
-      .where(eq(serviceRecords.id, id))
+      .where(and(eq(serviceRecords.id, id), eq(serviceRecords.vehicleId, vehicleId)))
       .returning();
     return record;
   }
 
-  async deleteServiceRecord(id: string): Promise<void> {
-    await db.delete(serviceRecords).where(eq(serviceRecords.id, id));
+  async deleteServiceRecord(id: string, vehicleId: string): Promise<boolean> {
+    const result = await db
+      .delete(serviceRecords)
+      .where(and(eq(serviceRecords.id, id), eq(serviceRecords.vehicleId, vehicleId)))
+      .returning();
+    return result.length > 0;
   }
 
   async getBuildNotes(vehicleId: string): Promise<BuildNote[]> {

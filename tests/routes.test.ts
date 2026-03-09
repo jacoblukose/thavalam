@@ -192,7 +192,7 @@ describe("Service record routes", () => {
     expect(res.body).toHaveLength(1);
   });
 
-  it("PATCH /api/vehicles/:id/services/:svcId updates a record", async () => {
+  it("PATCH /api/vehicles/:id/services/:svcId passes vehicleId to storage", async () => {
     mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
     mockStorage.updateServiceRecord.mockResolvedValue({ id: "s1", title: "Updated" });
 
@@ -202,6 +202,7 @@ describe("Service record routes", () => {
     });
     expect(res.status).toBe(200);
     expect(res.body.title).toBe("Updated");
+    expect(mockStorage.updateServiceRecord).toHaveBeenCalledWith("s1", "v1", expect.any(Object));
   });
 
   it("PATCH /api/vehicles/:id/services/:svcId returns 404 for unknown record", async () => {
@@ -215,13 +216,23 @@ describe("Service record routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("DELETE /api/vehicles/:id/services/:svcId deletes a record", async () => {
+  it("DELETE /api/vehicles/:id/services/:svcId passes vehicleId to storage", async () => {
     mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
-    mockStorage.deleteServiceRecord.mockResolvedValue(undefined);
+    mockStorage.deleteServiceRecord.mockResolvedValue(true);
 
     const app = buildApp();
     const res = await request(app, "DELETE", "/api/vehicles/v1/services/s1");
     expect(res.status).toBe(204);
+    expect(mockStorage.deleteServiceRecord).toHaveBeenCalledWith("s1", "v1");
+  });
+
+  it("DELETE /api/vehicles/:id/services/:svcId returns 404 when record not in vehicle", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.deleteServiceRecord.mockResolvedValue(false);
+
+    const app = buildApp();
+    const res = await request(app, "DELETE", "/api/vehicles/v1/services/s-other");
+    expect(res.status).toBe(404);
   });
 
   it("DELETE /api/vehicles/:id/services/:svcId returns 404 for unknown vehicle", async () => {
@@ -265,7 +276,27 @@ describe("Build notes routes", () => {
     expect(res.body.error).toContain("array");
   });
 
-  it("PUT /api/vehicles/:id/notes upserts notes", async () => {
+  it("PUT /api/vehicles/:id/notes rejects invalid note objects", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+
+    const app = buildApp();
+    const res = await request(app, "PUT", "/api/vehicles/v1/notes", [
+      { key: "", value: "Tuned" }, // key too short
+    ]);
+    expect(res.status).toBe(400);
+  });
+
+  it("PUT /api/vehicles/:id/notes rejects notes with missing fields", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+
+    const app = buildApp();
+    const res = await request(app, "PUT", "/api/vehicles/v1/notes", [
+      { foo: "bar" }, // missing key and value
+    ]);
+    expect(res.status).toBe(400);
+  });
+
+  it("PUT /api/vehicles/:id/notes upserts valid notes", async () => {
     mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
     const notes = [{ key: "Engine", value: "Tuned" }];
     mockStorage.upsertBuildNotes.mockResolvedValue(notes);
@@ -298,6 +329,12 @@ describe("Document routes", () => {
     const res = await request(app, "GET", "/api/vehicles/v1/documents");
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
+  });
+
+  it("GET /api/documents returns 401 for unauthenticated requests", async () => {
+    const app = buildApp(false);
+    const res = await request(app, "GET", "/api/documents");
+    expect(res.status).toBe(401);
   });
 
   it("GET /api/documents returns all user documents", async () => {

@@ -1,12 +1,35 @@
 import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
+import { z } from "zod";
 import { storage } from "./storage";
 import { insertVehicleSchema, insertServiceRecordSchema, insertVehicleDocumentSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { uploadToSupabase, deleteFromSupabase } from "./supabase-storage";
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type ${file.mimetype} not allowed. Accepted: PDF, JPEG, PNG, WebP`));
+    }
+  },
+});
+
+const buildNoteSchema = z.object({
+  key: z.string().min(1).max(200),
+  value: z.string().max(2000),
+});
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.isAuthenticated()) {
@@ -21,6 +44,9 @@ export async function registerRoutes(
 ): Promise<Server> {
   // All vehicle routes require auth
   app.use("/api/vehicles", requireAuth as RequestHandler);
+
+  // Non-vehicle API routes that also need auth
+  app.use("/api/documents", requireAuth as RequestHandler);
 
   // Vehicles
   app.get("/api/vehicles", async (req, res) => {
@@ -137,7 +163,7 @@ export async function registerRoutes(
       if (!result.success) {
         return res.status(400).json({ error: fromError(result.error).toString() });
       }
-      const record = await storage.updateServiceRecord(req.params.serviceId, result.data);
+      const record = await storage.updateServiceRecord(req.params.serviceId, req.params.vehicleId, result.data);
       if (!record) {
         return res.status(404).json({ error: "Service record not found" });
       }
@@ -154,7 +180,10 @@ export async function registerRoutes(
       if (!vehicle) {
         return res.status(404).json({ error: "Vehicle not found" });
       }
-      await storage.deleteServiceRecord(req.params.serviceId);
+      const deleted = await storage.deleteServiceRecord(req.params.serviceId, req.params.vehicleId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Service record not found" });
+      }
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting service record:", error);
@@ -186,7 +215,11 @@ export async function registerRoutes(
       if (!Array.isArray(req.body)) {
         return res.status(400).json({ error: "Expected array of notes" });
       }
-      const notes = await storage.upsertBuildNotes(req.params.vehicleId, req.body);
+      const parsed = z.array(buildNoteSchema).safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: fromError(parsed.error).toString() });
+      }
+      const notes = await storage.upsertBuildNotes(req.params.vehicleId, parsed.data);
       res.json(notes);
     } catch (error) {
       console.error("Error upserting build notes:", error);
@@ -309,7 +342,10 @@ export async function registerRoutes(
 
       const doc = await storage.createDocument(result.data);
       res.status(201).json(doc);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message?.includes("File type")) {
+        return res.status(400).json({ error: error.message });
+      }
       console.error("Error creating document:", error);
       res.status(500).json({ error: "Failed to create document" });
     }
