@@ -99,11 +99,24 @@ function clamp01(n: number) {
 }
 
 function serviceProgress(v: Vehicle) {
-  const span = Math.max(1, v.nextServiceKm - v.lastServiceKm);
+  const nextKm = v.lastServiceKm + v.serviceIntervalKm;
+  const span = Math.max(1, v.serviceIntervalKm);
   const done = v.odoKm - v.lastServiceKm;
   const pct = clamp01(done / span) * 100;
-  const remaining = Math.max(0, v.nextServiceKm - v.odoKm);
-  return { pct, remaining };
+  const remainingKm = Math.max(0, nextKm - v.odoKm);
+
+  let nextDate: string | null = null;
+  let remainingDays: number | null = null;
+  if (v.lastServiceDate && v.serviceIntervalMonths > 0) {
+    const last = new Date(v.lastServiceDate);
+    const next = new Date(last);
+    next.setMonth(next.getMonth() + v.serviceIntervalMonths);
+    nextDate = next.toISOString().split("T")[0];
+    const now = new Date();
+    remainingDays = Math.ceil((next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  return { pct, remainingKm, nextKm, nextDate, remainingDays };
 }
 
 function VehicleTypeIcon({ tags }: { tags: string[] }) {
@@ -263,7 +276,9 @@ function AddVehicleDialog({
     year: "",
     odoKm: "",
     lastServiceKm: "",
-    nextServiceKm: "",
+    lastServiceDate: "",
+    serviceIntervalKm: "10000",
+    serviceIntervalMonths: "6",
     location: "",
     tags: "",
     fuelType: "petrol",
@@ -281,7 +296,9 @@ function AddVehicleDialog({
         year: "",
         odoKm: "",
         lastServiceKm: "",
-        nextServiceKm: "",
+        lastServiceDate: "",
+        serviceIntervalKm: "10000",
+        serviceIntervalMonths: "6",
         location: "",
         tags: "",
         fuelType: "petrol",
@@ -292,13 +309,19 @@ function AddVehicleDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const lastKm = parseInt(form.lastServiceKm) || 0;
+    const intervalKm = parseInt(form.serviceIntervalKm) || 10000;
+    const intervalMonths = parseInt(form.serviceIntervalMonths) || 6;
     mutation.mutate({
       nickname: form.nickname,
       model: form.model,
       year: form.year,
       odoKm: parseInt(form.odoKm) || 0,
-      lastServiceKm: parseInt(form.lastServiceKm) || 0,
-      nextServiceKm: parseInt(form.nextServiceKm) || 0,
+      lastServiceKm: lastKm,
+      lastServiceDate: form.lastServiceDate || null,
+      serviceIntervalKm: intervalKm,
+      serviceIntervalMonths: intervalMonths,
+      nextServiceKm: lastKm + intervalKm,
       location: form.location,
       tags: form.tags
         .split(",")
@@ -351,7 +374,7 @@ function AddVehicleDialog({
               />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="odoKm">Odometer (km)</Label>
               <Input
@@ -372,14 +395,35 @@ function AddVehicleDialog({
                 onChange={(e) => update("lastServiceKm", e.target.value)}
               />
             </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="nextServiceKm">Next service (km)</Label>
+              <Label htmlFor="lastServiceDate">Last service date</Label>
               <Input
-                id="nextServiceKm"
+                id="lastServiceDate"
+                type="date"
+                value={form.lastServiceDate}
+                onChange={(e) => update("lastServiceDate", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="serviceIntervalKm">Interval (km)</Label>
+              <Input
+                id="serviceIntervalKm"
                 type="number"
-                placeholder="15000"
-                value={form.nextServiceKm}
-                onChange={(e) => update("nextServiceKm", e.target.value)}
+                placeholder="10000"
+                value={form.serviceIntervalKm}
+                onChange={(e) => update("serviceIntervalKm", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="serviceIntervalMonths">Interval (months)</Label>
+              <Input
+                id="serviceIntervalMonths"
+                type="number"
+                placeholder="6"
+                value={form.serviceIntervalMonths}
+                onChange={(e) => update("serviceIntervalMonths", e.target.value)}
               />
             </div>
           </div>
@@ -469,7 +513,9 @@ function EditVehicleDialog({
     year: vehicle.year,
     odoKm: String(vehicle.odoKm),
     lastServiceKm: String(vehicle.lastServiceKm),
-    nextServiceKm: String(vehicle.nextServiceKm),
+    lastServiceDate: vehicle.lastServiceDate ?? "",
+    serviceIntervalKm: String(vehicle.serviceIntervalKm),
+    serviceIntervalMonths: String(vehicle.serviceIntervalMonths),
     location: vehicle.location,
     tags: vehicle.tags.join(", "),
     status: vehicle.status,
@@ -485,7 +531,9 @@ function EditVehicleDialog({
         year: vehicle.year,
         odoKm: String(vehicle.odoKm),
         lastServiceKm: String(vehicle.lastServiceKm),
-        nextServiceKm: String(vehicle.nextServiceKm),
+        lastServiceDate: vehicle.lastServiceDate ?? "",
+        serviceIntervalKm: String(vehicle.serviceIntervalKm),
+        serviceIntervalMonths: String(vehicle.serviceIntervalMonths),
         location: vehicle.location,
         tags: vehicle.tags.join(", "),
         status: vehicle.status,
@@ -506,13 +554,19 @@ function EditVehicleDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const lastKm = parseInt(form.lastServiceKm) || 0;
+    const intervalKm = parseInt(form.serviceIntervalKm) || 10000;
+    const intervalMonths = parseInt(form.serviceIntervalMonths) || 6;
     mutation.mutate({
       nickname: form.nickname,
       model: form.model,
       year: form.year,
       odoKm: parseInt(form.odoKm) || 0,
-      lastServiceKm: parseInt(form.lastServiceKm) || 0,
-      nextServiceKm: parseInt(form.nextServiceKm) || 0,
+      lastServiceKm: lastKm,
+      lastServiceDate: form.lastServiceDate || null,
+      serviceIntervalKm: intervalKm,
+      serviceIntervalMonths: intervalMonths,
+      nextServiceKm: lastKm + intervalKm,
       location: form.location,
       tags: form.tags
         .split(",")
@@ -563,7 +617,7 @@ function EditVehicleDialog({
               />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="edit-odoKm">Odometer (km)</Label>
               <Input
@@ -584,14 +638,33 @@ function EditVehicleDialog({
                 required
               />
             </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-nextServiceKm">Next service (km)</Label>
+              <Label htmlFor="edit-lastServiceDate">Last service date</Label>
               <Input
-                id="edit-nextServiceKm"
+                id="edit-lastServiceDate"
+                type="date"
+                value={form.lastServiceDate}
+                onChange={(e) => update("lastServiceDate", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-serviceIntervalKm">Interval (km)</Label>
+              <Input
+                id="edit-serviceIntervalKm"
                 type="number"
-                value={form.nextServiceKm}
-                onChange={(e) => update("nextServiceKm", e.target.value)}
-                required
+                value={form.serviceIntervalKm}
+                onChange={(e) => update("serviceIntervalKm", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-serviceIntervalMonths">Interval (months)</Label>
+              <Input
+                id="edit-serviceIntervalMonths"
+                type="number"
+                value={form.serviceIntervalMonths}
+                onChange={(e) => update("serviceIntervalMonths", e.target.value)}
               />
             </div>
           </div>
@@ -2117,42 +2190,28 @@ export default function Garage() {
                     </div>
 
                     {/* Stats row */}
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
-                            <IndianRupee className="size-3.5 text-primary" strokeWidth={2.2} />
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {(() => {
+                        const sp = serviceProgress(activeVehicle);
+                        const v = activeVehicle;
+                        const overdue = sp.remainingKm === 0 || (sp.remainingDays !== null && sp.remainingDays <= 0);
+                        const dueText = sp.nextDate && sp.remainingDays !== null
+                          ? sp.remainingDays > 0 ? `${sp.remainingDays}d left` : `${Math.abs(sp.remainingDays)}d overdue`
+                          : null;
+                        return (
+                          <div className={`rounded-3xl border p-4 ${overdue ? "border-amber-500/40 bg-amber-500/5" : "border-border/70 bg-background/20"}`}>
+                            <div className="text-xs font-medium text-muted-foreground mb-2">Service due</div>
+                            <div className="flex items-center justify-between">
+                              <div className={`text-lg font-semibold ${overdue ? "text-amber-500" : "text-foreground"}`}>{km(sp.remainingKm)} left</div>
+                              {dueText && <div className={`text-lg font-semibold ${overdue ? "text-amber-500" : "text-foreground"}`}>{dueText}</div>}
+                            </div>
+                            <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground/70">
+                              <span>Last: {km(v.lastServiceKm)}{v.lastServiceDate ? ` · ${v.lastServiceDate}` : ""}</span>
+                              <span>Next: {km(sp.nextKm)}{sp.nextDate ? ` · ${sp.nextDate}` : ""}</span>
+                            </div>
                           </div>
-                          <div className="text-xs font-medium text-muted-foreground">
-                            Total cost
-                          </div>
-                        </div>
-                        <div className="mt-2 text-lg font-semibold text-foreground">
-                          {serviceRecords.length > 0
-                            ? formatMoney(serviceRecords.reduce((sum, r) => sum + r.amount, 0))
-                            : "—"}
-                        </div>
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          {serviceRecords.length} {serviceRecords.length === 1 ? "entry" : "entries"}
-                        </div>
-                      </div>
-
-                      <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
-                            <CalendarClock className="size-3.5 text-primary" strokeWidth={2.2} />
-                          </div>
-                          <div className="text-xs font-medium text-muted-foreground">
-                            Next service
-                          </div>
-                        </div>
-                        <div className="mt-2 text-lg font-semibold text-foreground">
-                          {km(serviceProgress(activeVehicle).remaining)}
-                        </div>
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          at {km(activeVehicle.nextServiceKm)}
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {documents.length > 0 && (() => {
                         const nearestDoc = documents.reduce((a, b) =>
@@ -2187,29 +2246,20 @@ export default function Garage() {
                       })()}
 
                       <div className="rounded-3xl border border-border/70 bg-background/20 p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs font-medium text-muted-foreground">
-                            Service interval
+                        <div className="flex items-center gap-2">
+                          <div className="grid size-8 place-items-center rounded-lg border border-border/70 bg-background/30">
+                            <IndianRupee className="size-3.5 text-primary" strokeWidth={2.2} />
                           </div>
-                          <div className="text-xs font-semibold text-foreground">
-                            {km(activeVehicle.nextServiceKm)}
-                          </div>
+                          <div className="text-xs font-medium text-muted-foreground">Total cost</div>
                         </div>
-                        <div className="mt-2">
-                          <Progress
-                            value={serviceProgress(activeVehicle).pct}
-                            className="h-2.5 bg-secondary/60"
-                          />
+                        <div className="mt-2 text-lg font-semibold text-foreground">
+                          {serviceRecords.length > 0 ? formatMoney(serviceRecords.reduce((sum, r) => sum + r.amount, 0)) : "—"}
                         </div>
-                        <div className="mt-3 flex items-center justify-between text-xs">
-                          <div className="text-muted-foreground">
-                            Last: {km(activeVehicle.lastServiceKm)}
-                          </div>
-                          <div className="font-semibold text-foreground">
-                            {km(serviceProgress(activeVehicle).remaining)} left
-                          </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {serviceRecords.length} {serviceRecords.length === 1 ? "entry" : "entries"}
                         </div>
                       </div>
+
                     </div>
 
                     {/* Cost summary */}

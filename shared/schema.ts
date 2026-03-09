@@ -26,6 +26,9 @@ export const vehicles = pgTable("vehicles", {
   year: text("year").notNull(),
   odoKm: integer("odo_km").notNull().default(0),
   lastServiceKm: integer("last_service_km").notNull().default(0),
+  lastServiceDate: text("last_service_date"), // ISO date string
+  serviceIntervalKm: integer("service_interval_km").notNull().default(10000),
+  serviceIntervalMonths: integer("service_interval_months").notNull().default(6),
   nextServiceKm: integer("next_service_km").notNull().default(0),
   health: integer("health").notNull().default(100),
   location: text("location").notNull().default(""),
