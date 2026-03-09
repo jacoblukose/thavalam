@@ -1406,15 +1406,6 @@ export default function Garage() {
                   Home
                 </Button>
               </Link>
-              {user && (
-                <Button
-                  className="bg-primary text-primary-foreground"
-                  onClick={() => setShowAddVehicle(true)}
-                >
-                  <Plus className="mr-2 size-4" />
-                  Add
-                </Button>
-              )}
               <UserMenu />
             </div>
           </div>
@@ -1424,11 +1415,7 @@ export default function Garage() {
           <div className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-5 shadow-md backdrop-blur md:p-7">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="max-w-xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/30 px-3 py-1 text-xs font-semibold text-foreground">
-                  <Sparkles className="size-3.5 text-primary" />
-                  Open Garage
-                </div>
-                <h1 className="mt-3 rg-title text-3xl font-semibold leading-[1.05] tracking-tight sm:text-4xl">
+                <h1 className="rg-title text-3xl font-semibold leading-[1.05] tracking-tight sm:text-4xl">
                   Your vehicles, organized.
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
