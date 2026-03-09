@@ -7,11 +7,14 @@ import {
   type VehicleDocument,
   type InsertVehicleDocument,
   type VehicleShare,
+  type FuelLog,
+  type InsertFuelLog,
   vehicles,
   serviceRecords,
   buildNotes,
   vehicleDocuments,
   vehicleShares,
+  fuelLogs,
   users,
 } from "@shared/schema";
 import { db } from "./db";
@@ -40,6 +43,12 @@ export interface IStorage {
   getDocumentsByUser(userId: string): Promise<VehicleDocument[]>;
   createDocument(doc: InsertVehicleDocument): Promise<VehicleDocument>;
   deleteDocument(id: string): Promise<void>;
+
+  // Fuel Logs
+  getFuelLogs(vehicleId: string): Promise<FuelLog[]>;
+  createFuelLog(log: InsertFuelLog): Promise<FuelLog>;
+  updateFuelLog(id: string, vehicleId: string, updates: Partial<InsertFuelLog>): Promise<FuelLog | undefined>;
+  deleteFuelLog(id: string, vehicleId: string): Promise<boolean>;
 
   // Sharing
   canAccessVehicle(vehicleId: string, userId: string): Promise<boolean>;
@@ -198,6 +207,36 @@ export class DbStorage implements IStorage {
 
   async deleteDocument(id: string): Promise<void> {
     await db.delete(vehicleDocuments).where(eq(vehicleDocuments.id, id));
+  }
+
+  async getFuelLogs(vehicleId: string): Promise<FuelLog[]> {
+    return await db
+      .select()
+      .from(fuelLogs)
+      .where(eq(fuelLogs.vehicleId, vehicleId))
+      .orderBy(desc(fuelLogs.createdAt));
+  }
+
+  async createFuelLog(log: InsertFuelLog): Promise<FuelLog> {
+    const [fuelLog] = await db.insert(fuelLogs).values(log).returning();
+    return fuelLog;
+  }
+
+  async updateFuelLog(id: string, vehicleId: string, updates: Partial<InsertFuelLog>): Promise<FuelLog | undefined> {
+    const [log] = await db
+      .update(fuelLogs)
+      .set(updates)
+      .where(and(eq(fuelLogs.id, id), eq(fuelLogs.vehicleId, vehicleId)))
+      .returning();
+    return log;
+  }
+
+  async deleteFuelLog(id: string, vehicleId: string): Promise<boolean> {
+    const result = await db
+      .delete(fuelLogs)
+      .where(and(eq(fuelLogs.id, id), eq(fuelLogs.vehicleId, vehicleId)))
+      .returning();
+    return result.length > 0;
   }
 
   async canAccessVehicle(vehicleId: string, userId: string): Promise<boolean> {

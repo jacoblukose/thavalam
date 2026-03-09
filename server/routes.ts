@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import { z } from "zod";
 import { storage } from "./storage";
-import { insertVehicleSchema, insertServiceRecordSchema, insertVehicleDocumentSchema } from "@shared/schema";
+import { insertVehicleSchema, insertServiceRecordSchema, insertVehicleDocumentSchema, insertFuelLogSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { uploadToSupabase, deleteFromSupabase } from "./supabase-storage";
 
@@ -370,6 +370,80 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting document:", error);
       res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
+  // Fuel Logs — verify vehicle belongs to user
+  app.get("/api/vehicles/:vehicleId/fuel-logs", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      const logs = await storage.getFuelLogs(req.params.vehicleId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching fuel logs:", error);
+      res.status(500).json({ error: "Failed to fetch fuel logs" });
+    }
+  });
+
+  app.post("/api/vehicles/:vehicleId/fuel-logs", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      const result = insertFuelLogSchema.safeParse({
+        ...req.body,
+        vehicleId: req.params.vehicleId,
+      });
+      if (!result.success) {
+        return res.status(400).json({ error: fromError(result.error).toString() });
+      }
+      const log = await storage.createFuelLog(result.data);
+      res.status(201).json(log);
+    } catch (error) {
+      console.error("Error creating fuel log:", error);
+      res.status(500).json({ error: "Failed to create fuel log" });
+    }
+  });
+
+  app.patch("/api/vehicles/:vehicleId/fuel-logs/:logId", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      const result = insertFuelLogSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: fromError(result.error).toString() });
+      }
+      const log = await storage.updateFuelLog(req.params.logId, req.params.vehicleId, result.data);
+      if (!log) {
+        return res.status(404).json({ error: "Fuel log not found" });
+      }
+      res.json(log);
+    } catch (error) {
+      console.error("Error updating fuel log:", error);
+      res.status(500).json({ error: "Failed to update fuel log" });
+    }
+  });
+
+  app.delete("/api/vehicles/:vehicleId/fuel-logs/:logId", async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+      const deleted = await storage.deleteFuelLog(req.params.logId, req.params.vehicleId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Fuel log not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting fuel log:", error);
+      res.status(500).json({ error: "Failed to delete fuel log" });
     }
   });
 

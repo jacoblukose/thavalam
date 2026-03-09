@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   FileText,
+  Fuel,
   IndianRupee,
   Loader2,
   MapPin,
@@ -22,6 +23,7 @@ import {
   Share2,
   Sparkles,
   Trash2,
+  TrendingUp,
   Upload,
   UserPlus,
   Wrench,
@@ -62,15 +64,19 @@ import {
   fetchBuildNotes,
   fetchDocuments,
   fetchShares,
+  fetchFuelLogs,
   fetchCurrentUser,
   createVehicle,
   createServiceRecord,
   createDocument,
+  createFuelLog,
   shareVehicle,
   unshareVehicle,
   updateVehicle,
   updateServiceRecord,
+  updateFuelLog,
   deleteServiceRecord,
+  deleteFuelLog,
   deleteVehicle,
   deleteDocument,
   upsertBuildNotes,
@@ -79,7 +85,7 @@ import type { ShareInfo } from "@/lib/api";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
-import type { Vehicle, ServiceRecord, BuildNote, VehicleDocument } from "@shared/schema";
+import type { Vehicle, ServiceRecord, BuildNote, VehicleDocument, FuelLog } from "@shared/schema";
 
 const formatMoney = (n: number) =>
   n.toLocaleString("en-IN", { style: "currency", currency: "INR" });
@@ -260,6 +266,8 @@ function AddVehicleDialog({
     nextServiceKm: "",
     location: "",
     tags: "",
+    fuelType: "petrol",
+    tankCapacity: "",
   });
 
   const mutation = useMutation({
@@ -276,6 +284,8 @@ function AddVehicleDialog({
         nextServiceKm: "",
         location: "",
         tags: "",
+        fuelType: "petrol",
+        tankCapacity: "",
       });
     },
   });
@@ -294,6 +304,8 @@ function AddVehicleDialog({
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
+      fuelType: form.fuelType,
+      tankCapacity: form.tankCapacity || null,
     });
   };
 
@@ -391,6 +403,33 @@ function AddVehicleDialog({
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="fuelType">Fuel type</Label>
+              <Select value={form.fuelType} onValueChange={(v) => update("fuelType", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="petrol">Petrol</SelectItem>
+                  <SelectItem value="diesel">Diesel</SelectItem>
+                  <SelectItem value="electric">Electric</SelectItem>
+                  <SelectItem value="cng">CNG</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tankCapacity">
+                {form.fuelType === "electric" ? "Battery (kWh)" : "Tank (L)"}
+              </Label>
+              <Input
+                id="tankCapacity"
+                type="number"
+                step="0.1"
+                placeholder={form.fuelType === "electric" ? "e.g. 3.0" : "e.g. 12"}
+                value={form.tankCapacity}
+                onChange={(e) => update("tankCapacity", e.target.value)}
+              />
+            </div>
+          </div>
           <Button
             type="submit"
             className="mt-2 w-full bg-primary text-primary-foreground"
@@ -434,6 +473,8 @@ function EditVehicleDialog({
     location: vehicle.location,
     tags: vehicle.tags.join(", "),
     status: vehicle.status,
+    fuelType: vehicle.fuelType,
+    tankCapacity: vehicle.tankCapacity ?? "",
   });
 
   useEffect(() => {
@@ -448,6 +489,8 @@ function EditVehicleDialog({
         location: vehicle.location,
         tags: vehicle.tags.join(", "),
         status: vehicle.status,
+        fuelType: vehicle.fuelType,
+        tankCapacity: vehicle.tankCapacity ?? "",
       });
     }
   }, [open, vehicle]);
@@ -476,6 +519,8 @@ function EditVehicleDialog({
         .map((t) => t.trim())
         .filter(Boolean),
       status: form.status,
+      fuelType: form.fuelType,
+      tankCapacity: form.tankCapacity || null,
     });
   };
 
@@ -569,17 +614,41 @@ function EditVehicleDialog({
               />
             </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="edit-status">Ownership status</Label>
-            <Select value={form.status} onValueChange={(v) => update("status", v)}>
-              <SelectTrigger id="edit-status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="owned">Owned</SelectItem>
-                <SelectItem value="sold">Sold</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-fuelType">Fuel type</Label>
+              <Select value={form.fuelType} onValueChange={(v) => update("fuelType", v)}>
+                <SelectTrigger id="edit-fuelType"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="petrol">Petrol</SelectItem>
+                  <SelectItem value="diesel">Diesel</SelectItem>
+                  <SelectItem value="electric">Electric</SelectItem>
+                  <SelectItem value="cng">CNG</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-tankCapacity">
+                {form.fuelType === "electric" ? "Battery (kWh)" : "Tank (L)"}
+              </Label>
+              <Input
+                id="edit-tankCapacity"
+                type="number"
+                step="0.1"
+                value={form.tankCapacity}
+                onChange={(e) => update("tankCapacity", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={form.status} onValueChange={(v) => update("status", v)}>
+                <SelectTrigger id="edit-status"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owned">Owned</SelectItem>
+                  <SelectItem value="sold">Sold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <Button
             type="submit"
@@ -1298,6 +1367,447 @@ function ShareVehicleDialog({
   );
 }
 
+function fuelUnit(fuelType: string) {
+  return fuelType === "electric" ? "kWh" : "L";
+}
+
+function fuelEfficiencyUnit(fuelType: string) {
+  return fuelType === "electric" ? "km/kWh" : "km/L";
+}
+
+function formatCost(minor: number) {
+  return (minor / 100).toFixed(2);
+}
+
+function FuelTab({
+  logs,
+  vehicle,
+  vehicleId,
+  onAdd,
+  onEdit,
+}: {
+  logs: FuelLog[];
+  vehicle: Vehicle | undefined;
+  vehicleId: string;
+  onAdd: () => void;
+  onEdit: (log: FuelLog) => void;
+}) {
+  const queryClient = useQueryClient();
+  const deleteMut = useMutation({
+    mutationFn: (logId: string) => deleteFuelLog(vehicleId, logId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fuelLogs", vehicleId] }),
+  });
+
+  const ft = vehicle?.fuelType ?? "petrol";
+  const unit = fuelUnit(ft);
+
+  // Calculate stats from full-tank fills
+  const sorted = [...logs].sort((a, b) => a.odoKm - b.odoKm);
+  let totalCost = 0;
+  let totalAmount = 0;
+  const efficiencies: { date: string; kpl: number; cost: number }[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    totalCost += sorted[i].cost;
+    totalAmount += parseFloat(sorted[i].amount);
+    if (i > 0 && sorted[i].fullTank) {
+      // Find previous full-tank fill
+      let prevIdx = -1;
+      for (let j = i - 1; j >= 0; j--) {
+        if (sorted[j].fullTank) { prevIdx = j; break; }
+      }
+      if (prevIdx >= 0) {
+        const distKm = sorted[i].odoKm - sorted[prevIdx].odoKm;
+        // Sum fuel between prevIdx+1 and i (fuel used in this segment)
+        let segFuel = 0;
+        for (let k = prevIdx + 1; k <= i; k++) segFuel += parseFloat(sorted[k].amount);
+        if (distKm > 0 && segFuel > 0) {
+          efficiencies.push({
+            date: sorted[i].date,
+            kpl: distKm / segFuel,
+            cost: sorted[i].cost,
+          });
+        }
+      }
+    }
+  }
+
+  const avgEfficiency = efficiencies.length > 0
+    ? efficiencies.reduce((s, e) => s + e.kpl, 0) / efficiencies.length
+    : null;
+  const totalDistKm = sorted.length >= 2
+    ? sorted[sorted.length - 1].odoKm - sorted[0].odoKm
+    : 0;
+  const costPerKm = totalDistKm > 0 ? totalCost / totalDistKm : null;
+
+  if (logs.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/70 bg-background/20 p-6 text-center">
+        <div className="text-sm font-semibold">No fuel logs yet</div>
+        <div className="text-xs text-muted-foreground">
+          Log each fill-up or charge to track fuel economy and costs.
+        </div>
+        <Button className="rounded-2xl bg-primary text-primary-foreground" onClick={onAdd}>
+          <Fuel className="mr-2 size-4" />
+          Add fuel log
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Stats row */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
+          <div className="text-xs text-muted-foreground">Avg efficiency</div>
+          <div className="text-sm font-semibold">
+            {avgEfficiency ? `${avgEfficiency.toFixed(1)} ${fuelEfficiencyUnit(ft)}` : "—"}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
+          <div className="text-xs text-muted-foreground">Cost / km</div>
+          <div className="text-sm font-semibold">
+            {costPerKm ? `₹${(costPerKm / 100).toFixed(2)}` : "—"}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
+          <div className="text-xs text-muted-foreground">Total spent</div>
+          <div className="text-sm font-semibold">₹{formatCost(totalCost)}</div>
+        </div>
+      </div>
+
+      {/* Efficiency trend */}
+      {efficiencies.length >= 2 && (
+        <div className="rounded-2xl border border-border/70 bg-background/20 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-2">
+            <TrendingUp className="size-3.5" />
+            Efficiency trend ({fuelEfficiencyUnit(ft)})
+          </div>
+          <div className="flex items-end gap-1 h-16">
+            {(() => {
+              const maxKpl = Math.max(...efficiencies.map(e => e.kpl));
+              return efficiencies.map((e, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t bg-primary/60 hover:bg-primary/80 transition-colors relative group"
+                  style={{ height: `${(e.kpl / maxKpl) * 100}%`, minHeight: 4 }}
+                >
+                  <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block bg-card border border-border rounded-lg px-2 py-1 text-xs whitespace-nowrap z-10">
+                    {e.kpl.toFixed(1)} {fuelEfficiencyUnit(ft)} — {e.date}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Log table */}
+      <div className="overflow-x-auto rounded-2xl border border-border/70">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border/70 bg-background/30">
+              <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Date</th>
+              <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">{unit}</th>
+              <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Cost</th>
+              <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Odo (km)</th>
+              <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Full</th>
+              <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Station</th>
+              <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => (
+              <tr key={log.id} className="border-b border-border/50 last:border-0 hover:bg-background/20 group">
+                <td className="px-4 py-2.5 text-xs font-medium">{log.date}</td>
+                <td className="px-4 py-2.5 text-xs">{parseFloat(log.amount).toFixed(1)}</td>
+                <td className="px-4 py-2.5 text-xs">₹{formatCost(log.cost)}</td>
+                <td className="px-4 py-2.5 text-xs">{log.odoKm.toLocaleString()}</td>
+                <td className="px-4 py-2.5 text-xs">{log.fullTank ? "Yes" : "—"}</td>
+                <td className="px-4 py-2.5 text-xs text-muted-foreground">{log.station || "—"}</td>
+                <td className="px-4 py-2.5">
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => onEdit(log)} className="text-muted-foreground hover:text-foreground">
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      onClick={() => { if (confirm("Delete this fuel log?")) deleteMut.mutate(log.id); }}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Button variant="secondary" className="rounded-2xl bg-secondary/60" onClick={onAdd}>
+        <Plus className="mr-2 size-4" />
+        Add fuel log
+      </Button>
+    </div>
+  );
+}
+
+function AddFuelLogDialog({
+  open,
+  onOpenChange,
+  vehicleId,
+  fuelType,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicleId: string;
+  fuelType: string;
+}) {
+  const queryClient = useQueryClient();
+  const unit = fuelUnit(fuelType);
+  const [form, setForm] = useState({
+    date: format(new Date(), "yyyy-MM-dd"),
+    amount: "",
+    cost: "",
+    odoKm: "",
+    fullTank: true,
+    station: "",
+    notes: "",
+  });
+  const [calOpen, setCalOpen] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: (data: Parameters<typeof createFuelLog>[1]) => createFuelLog(vehicleId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fuelLogs", vehicleId] });
+      onOpenChange(false);
+      setForm({ date: format(new Date(), "yyyy-MM-dd"), amount: "", cost: "", odoKm: "", fullTank: true, station: "", notes: "" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      date: form.date,
+      amount: form.amount,
+      cost: Math.round(parseFloat(form.cost) * 100),
+      odoKm: parseInt(form.odoKm),
+      fullTank: form.fullTank,
+      station: form.station || null,
+      notes: form.notes || null,
+    });
+  };
+
+  const upd = (key: string, value: any) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add fuel log</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Date</Label>
+              <Popover open={calOpen} onOpenChange={setCalOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 size-4" />
+                    {form.date}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={new Date(form.date)}
+                    onSelect={(d) => { if (d) { upd("date", format(d, "yyyy-MM-dd")); setCalOpen(false); } }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="grid gap-2">
+              <Label>Odometer (km)</Label>
+              <Input type="number" placeholder="37500" value={form.odoKm} onChange={(e) => upd("odoKm", e.target.value)} required />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label>{unit}</Label>
+              <Input type="number" step="0.01" placeholder={fuelType === "electric" ? "2.5" : "5.0"} value={form.amount} onChange={(e) => upd("amount", e.target.value)} required />
+            </div>
+            <div className="grid gap-2">
+              <Label>Cost (₹)</Label>
+              <Input type="number" step="0.01" placeholder="500" value={form.cost} onChange={(e) => upd("cost", e.target.value)} required />
+            </div>
+            <div className="grid gap-2">
+              <Label>Full tank?</Label>
+              <Select value={form.fullTank ? "yes" : "no"} onValueChange={(v) => upd("fullTank", v === "yes")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Station</Label>
+              <Input placeholder="e.g. HP Koramangala" value={form.station} onChange={(e) => upd("station", e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Notes</Label>
+              <Input placeholder="Optional" value={form.notes} onChange={(e) => upd("notes", e.target.value)} />
+            </div>
+          </div>
+          <Button type="submit" className="mt-2 w-full bg-primary text-primary-foreground" disabled={mutation.isPending}>
+            {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Fuel className="mr-2 size-4" />}
+            Add fuel log
+          </Button>
+          {mutation.isError && <p className="text-sm text-destructive">Failed to add fuel log.</p>}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditFuelLogDialog({
+  open,
+  onOpenChange,
+  vehicleId,
+  fuelType,
+  log,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicleId: string;
+  fuelType: string;
+  log: FuelLog;
+}) {
+  const queryClient = useQueryClient();
+  const unit = fuelUnit(fuelType);
+  const [form, setForm] = useState({
+    date: log.date,
+    amount: log.amount,
+    cost: String(log.cost / 100),
+    odoKm: String(log.odoKm),
+    fullTank: log.fullTank,
+    station: log.station ?? "",
+    notes: log.notes ?? "",
+  });
+  const [calOpen, setCalOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        date: log.date,
+        amount: log.amount,
+        cost: String(log.cost / 100),
+        odoKm: String(log.odoKm),
+        fullTank: log.fullTank,
+        station: log.station ?? "",
+        notes: log.notes ?? "",
+      });
+    }
+  }, [open, log]);
+
+  const mutation = useMutation({
+    mutationFn: (updates: Parameters<typeof updateFuelLog>[2]) => updateFuelLog(vehicleId, log.id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fuelLogs", vehicleId] });
+      onOpenChange(false);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      date: form.date,
+      amount: form.amount,
+      cost: Math.round(parseFloat(form.cost) * 100),
+      odoKm: parseInt(form.odoKm),
+      fullTank: form.fullTank,
+      station: form.station || null,
+      notes: form.notes || null,
+    });
+  };
+
+  const upd = (key: string, value: any) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit fuel log</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Date</Label>
+              <Popover open={calOpen} onOpenChange={setCalOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 size-4" />
+                    {form.date}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={new Date(form.date)}
+                    onSelect={(d) => { if (d) { upd("date", format(d, "yyyy-MM-dd")); setCalOpen(false); } }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="grid gap-2">
+              <Label>Odometer (km)</Label>
+              <Input type="number" value={form.odoKm} onChange={(e) => upd("odoKm", e.target.value)} required />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label>{unit}</Label>
+              <Input type="number" step="0.01" value={form.amount} onChange={(e) => upd("amount", e.target.value)} required />
+            </div>
+            <div className="grid gap-2">
+              <Label>Cost (₹)</Label>
+              <Input type="number" step="0.01" value={form.cost} onChange={(e) => upd("cost", e.target.value)} required />
+            </div>
+            <div className="grid gap-2">
+              <Label>Full tank?</Label>
+              <Select value={form.fullTank ? "yes" : "no"} onValueChange={(v) => upd("fullTank", v === "yes")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Station</Label>
+              <Input value={form.station} onChange={(e) => upd("station", e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Notes</Label>
+              <Input value={form.notes} onChange={(e) => upd("notes", e.target.value)} />
+            </div>
+          </div>
+          <Button type="submit" className="mt-2 w-full bg-primary text-primary-foreground" disabled={mutation.isPending}>
+            {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Pencil className="mr-2 size-4" />}
+            Save changes
+          </Button>
+          {mutation.isError && <p className="text-sm text-destructive">Failed to update fuel log.</p>}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Garage() {
   const [activeId, setActiveId] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1309,6 +1819,8 @@ export default function Garage() {
   const [showAddMaintenance, setShowAddMaintenance] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ServiceRecord | null>(null);
   const [showAddDocument, setShowAddDocument] = useState(false);
+  const [showAddFuelLog, setShowAddFuelLog] = useState(false);
+  const [editingFuelLog, setEditingFuelLog] = useState<FuelLog | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [defaultTab, setDefaultTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1363,6 +1875,12 @@ export default function Garage() {
   const { data: documents = [] } = useQuery({
     queryKey: ["documents", currentActiveId],
     queryFn: () => fetchDocuments(currentActiveId!),
+    enabled: !!currentActiveId,
+  });
+
+  const { data: fuelLogsList = [] } = useQuery({
+    queryKey: ["fuelLogs", currentActiveId],
+    queryFn: () => fetchFuelLogs(currentActiveId!),
     enabled: !!currentActiveId,
   });
 
@@ -1753,6 +2271,9 @@ export default function Garage() {
                         <TabsTrigger value="documents" className="rounded-2xl">
                           Docs
                         </TabsTrigger>
+                        <TabsTrigger value="fuel" className="rounded-2xl">
+                          Fuel
+                        </TabsTrigger>
                         <TabsTrigger value="build" className="rounded-2xl">
                           Build
                         </TabsTrigger>
@@ -1849,6 +2370,16 @@ export default function Garage() {
                         )}
                       </TabsContent>
 
+                      <TabsContent value="fuel" className="mt-4">
+                        <FuelTab
+                          logs={fuelLogsList}
+                          vehicle={activeVehicle}
+                          vehicleId={currentActiveId!}
+                          onAdd={() => setShowAddFuelLog(true)}
+                          onEdit={setEditingFuelLog}
+                        />
+                      </TabsContent>
+
                       <TabsContent value="build" className="mt-4">
                         <div className="text-xs text-muted-foreground mb-3">
                           Track modifications, tyres, accessories, and any important notes.
@@ -1908,6 +2439,21 @@ export default function Garage() {
             onOpenChange={setShowAddDocument}
             vehicleId={currentActiveId}
           />
+          <AddFuelLogDialog
+            open={showAddFuelLog}
+            onOpenChange={setShowAddFuelLog}
+            vehicleId={currentActiveId}
+            fuelType={activeVehicle?.fuelType ?? "petrol"}
+          />
+          {editingFuelLog && (
+            <EditFuelLogDialog
+              open={!!editingFuelLog}
+              onOpenChange={(open) => { if (!open) setEditingFuelLog(null); }}
+              vehicleId={currentActiveId}
+              fuelType={activeVehicle?.fuelType ?? "petrol"}
+              log={editingFuelLog}
+            />
+          )}
           {activeVehicle && (
             <>
               <EditVehicleDialog

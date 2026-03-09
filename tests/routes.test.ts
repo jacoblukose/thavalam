@@ -20,6 +20,10 @@ vi.mock("../server/storage", () => ({
     getDocumentsByUser: vi.fn(),
     createDocument: vi.fn(),
     deleteDocument: vi.fn(),
+    getFuelLogs: vi.fn(),
+    createFuelLog: vi.fn(),
+    updateFuelLog: vi.fn(),
+    deleteFuelLog: vi.fn(),
     canAccessVehicle: vi.fn(),
     getShares: vi.fn(),
     shareVehicle: vi.fn(),
@@ -425,5 +429,107 @@ describe("Sharing routes", () => {
       email: "nobody@test.com",
     });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("Fuel log routes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("GET /api/vehicles/:id/fuel-logs returns 404 for unknown vehicle", async () => {
+    mockStorage.getVehicle.mockResolvedValue(undefined);
+
+    const app = buildApp();
+    const res = await request(app, "GET", "/api/vehicles/unknown/fuel-logs");
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /api/vehicles/:id/fuel-logs returns logs for valid vehicle", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.getFuelLogs.mockResolvedValue([
+      { id: "f1", date: "2026-03-01", amount: "5.0", cost: 50000, odoKm: 37000, fullTank: true },
+    ]);
+
+    const app = buildApp();
+    const res = await request(app, "GET", "/api/vehicles/v1/fuel-logs");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+  });
+
+  it("POST /api/vehicles/:id/fuel-logs creates a log", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    const newLog = { id: "f1", date: "2026-03-01", amount: "5.0", cost: 50000, odoKm: 37000, fullTank: true };
+    mockStorage.createFuelLog.mockResolvedValue(newLog);
+
+    const app = buildApp();
+    const res = await request(app, "POST", "/api/vehicles/v1/fuel-logs", {
+      date: "2026-03-01",
+      amount: "5.0",
+      cost: 50000,
+      odoKm: 37000,
+      fullTank: true,
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe("f1");
+  });
+
+  it("POST /api/vehicles/:id/fuel-logs rejects invalid data", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+
+    const app = buildApp();
+    const res = await request(app, "POST", "/api/vehicles/v1/fuel-logs", {
+      date: "2026-03-01",
+      // missing amount, cost, odoKm
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("PATCH /api/vehicles/:id/fuel-logs/:logId updates a log", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.updateFuelLog.mockResolvedValue({ id: "f1", cost: 55000 });
+
+    const app = buildApp();
+    const res = await request(app, "PATCH", "/api/vehicles/v1/fuel-logs/f1", {
+      cost: 55000,
+    });
+    expect(res.status).toBe(200);
+    expect(mockStorage.updateFuelLog).toHaveBeenCalledWith("f1", "v1", expect.any(Object));
+  });
+
+  it("PATCH /api/vehicles/:id/fuel-logs/:logId returns 404 for unknown log", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.updateFuelLog.mockResolvedValue(undefined);
+
+    const app = buildApp();
+    const res = await request(app, "PATCH", "/api/vehicles/v1/fuel-logs/unknown", {
+      cost: 55000,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("DELETE /api/vehicles/:id/fuel-logs/:logId deletes a log", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.deleteFuelLog.mockResolvedValue(true);
+
+    const app = buildApp();
+    const res = await request(app, "DELETE", "/api/vehicles/v1/fuel-logs/f1");
+    expect(res.status).toBe(204);
+    expect(mockStorage.deleteFuelLog).toHaveBeenCalledWith("f1", "v1");
+  });
+
+  it("DELETE /api/vehicles/:id/fuel-logs/:logId returns 404 when not found", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.deleteFuelLog.mockResolvedValue(false);
+
+    const app = buildApp();
+    const res = await request(app, "DELETE", "/api/vehicles/v1/fuel-logs/unknown");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 401 for unauthenticated fuel log requests", async () => {
+    const app = buildApp(false);
+    const res = await request(app, "GET", "/api/vehicles/v1/fuel-logs");
+    expect(res.status).toBe(401);
   });
 });

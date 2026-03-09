@@ -1,4 +1,4 @@
-import type { Vehicle, InsertVehicle, ServiceRecord, InsertServiceRecord, BuildNote, VehicleDocument, VehicleShare } from "@shared/schema";
+import type { Vehicle, InsertVehicle, ServiceRecord, InsertServiceRecord, BuildNote, VehicleDocument, VehicleShare, FuelLog, InsertFuelLog } from "@shared/schema";
 
 const API_BASE = "/api";
 
@@ -191,4 +191,41 @@ export async function unshareVehicle(vehicleId: string, userId: string): Promise
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to remove share");
+}
+
+export async function fetchFuelLogs(vehicleId: string): Promise<FuelLog[]> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/fuel-logs`);
+  if (!res.ok) throw new Error("Failed to fetch fuel logs");
+  return res.json();
+}
+
+export async function createFuelLog(vehicleId: string, log: Omit<InsertFuelLog, "vehicleId">): Promise<FuelLog> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/fuel-logs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(log),
+  });
+  if (!res.ok) throw new Error("Failed to create fuel log");
+  return res.json();
+}
+
+export async function updateFuelLog(
+  vehicleId: string,
+  logId: string,
+  updates: Partial<Omit<InsertFuelLog, "vehicleId">>,
+): Promise<FuelLog> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/fuel-logs/${logId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error("Failed to update fuel log");
+  return res.json();
+}
+
+export async function deleteFuelLog(vehicleId: string, logId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/fuel-logs/${logId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete fuel log");
 }

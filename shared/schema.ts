@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, numeric, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -31,6 +31,8 @@ export const vehicles = pgTable("vehicles", {
   location: text("location").notNull().default(""),
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   status: text("status").notNull().default("owned"),
+  fuelType: text("fuel_type").notNull().default("petrol"), // petrol | diesel | electric | cng
+  tankCapacity: numeric("tank_capacity"), // liters or kWh depending on fuelType
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -107,3 +109,24 @@ export const insertVehicleDocumentSchema = createInsertSchema(vehicleDocuments).
 
 export type InsertVehicleDocument = z.infer<typeof insertVehicleDocumentSchema>;
 export type VehicleDocument = typeof vehicleDocuments.$inferSelect;
+
+export const fuelLogs = pgTable("fuel_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vehicleId: varchar("vehicle_id").notNull().references(() => vehicles.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // ISO date string
+  amount: numeric("amount").notNull(), // liters or kWh
+  cost: integer("cost").notNull(), // minor currency units (paise/cents)
+  odoKm: integer("odo_km").notNull(),
+  fullTank: boolean("full_tank").notNull().default(false),
+  station: text("station"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFuelLogSchema = createInsertSchema(fuelLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertFuelLog = z.infer<typeof insertFuelLogSchema>;
+export type FuelLog = typeof fuelLogs.$inferSelect;
