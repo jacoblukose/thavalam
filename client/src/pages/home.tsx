@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -21,6 +21,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { NotificationBell } from "@/components/notification-bell";
+import { AuthModal } from "@/components/auth-modal";
 import { fetchCurrentUser, fetchVehicles, fetchAllDocuments } from "@/lib/api";
 import type { VehicleDocument } from "@shared/schema";
 
@@ -124,6 +125,8 @@ function StatPill({
 }
 
 export default function Home() {
+  const [authModal, setAuthModal] = useState<{ open: boolean; mode: "signin" | "signup" }>({ open: false, mode: "signin" });
+
   const { data: user } = useQuery({
     queryKey: ["currentUser"],
     queryFn: fetchCurrentUser,
@@ -244,12 +247,21 @@ export default function Home() {
                   <UserMenu />
                 </>
               ) : (
-                <a href="/api/auth/google">
-                  <Button className="bg-primary text-primary-foreground gap-2">
+                <>
+                  <Button
+                    variant="ghost"
+                    className="text-sm"
+                    onClick={() => setAuthModal({ open: true, mode: "signin" })}
+                  >
                     Sign in
-                    <ArrowRight className="size-4" />
                   </Button>
-                </a>
+                  <Button
+                    className="bg-primary text-primary-foreground"
+                    onClick={() => setAuthModal({ open: true, mode: "signup" })}
+                  >
+                    Sign up
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -269,87 +281,43 @@ export default function Home() {
                 <Logo className="size-10 text-primary sm:size-12" />
               </motion.div>
 
-              {/* Headline */}
+              {/* Title */}
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                className="rg-title mt-8 max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl"
+                className="rg-title mt-8 bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl md:text-6xl"
               >
-                A digital den for{" "}
-                <span className="bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent">
-                  your vehicles
-                </span>
+                Pocket Garage
               </motion.h1>
 
-              {/* Subtitle */}
+              {/* Tagline */}
               <motion.p
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35, duration: 0.6 }}
-                className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg"
+                className="mt-3 text-sm text-muted-foreground sm:text-base"
               >
-                Track services, fuel, modifications, and documents for every vehicle you own.
-                All in one place, beautifully organized.
+                Track services, fuel, mods, and documents for every vehicle you own.
               </motion.p>
 
-              {/* CTA Buttons */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.6 }}
-                className="mt-8 flex flex-col items-center gap-3 sm:flex-row"
-              >
-                {user ? (
+              {/* CTA Button — logged-in only */}
+              {user && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, duration: 0.6 }}
+                  className="mt-8"
+                >
                   <Link href="/garage">
                     <Button size="lg" className="bg-primary text-primary-foreground text-base px-8 py-6 rounded-2xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
                       Open your garage
                       <ArrowRight className="ml-2 size-5" />
                     </Button>
                   </Link>
-                ) : (
-                  <>
-                    <a href="/api/auth/google">
-                      <Button size="lg" className="bg-primary text-primary-foreground text-base px-8 py-6 rounded-2xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
-                        <svg className="mr-2 size-5" viewBox="0 0 24 24">
-                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
-                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                        </svg>
-                        Sign in with Google
-                      </Button>
-                    </a>
-                    <span className="text-xs text-muted-foreground">Free forever. No credit card needed.</span>
-                  </>
-                )}
-              </motion.div>
+                </motion.div>
+              )}
 
-              {/* Floating badges */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7, duration: 0.8 }}
-                className="mt-10 flex flex-wrap items-center justify-center gap-2"
-              >
-                {[
-                  { icon: <Car className="size-3" />, text: "Cars" },
-                  { icon: <Gauge className="size-3" />, text: "Bikes" },
-                  { icon: <Fuel className="size-3" />, text: "Scooters" },
-                  { icon: <Sparkles className="size-3" />, text: "EVs" },
-                ].map((badge, i) => (
-                  <motion.span
-                    key={badge.text}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.8 + i * 0.1, duration: 0.4 }}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/50 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur"
-                  >
-                    {badge.icon}
-                    {badge.text}
-                  </motion.span>
-                ))}
-              </motion.div>
             </div>
           </div>
         </section>
@@ -520,42 +488,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Bottom CTA */}
-        {!user && (
-          <section className="relative z-10 px-4 pb-20 pt-8 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-4xl">
-              <AnimatedSection>
-                <motion.div
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true, margin: "-60px" }}
-                  className="rg-noise rounded-[28px] border border-primary/20 bg-gradient-to-b from-primary/5 to-transparent p-8 text-center shadow-lg backdrop-blur sm:p-12"
-                >
-                  <motion.h2 custom={0} variants={fadeUp} className="rg-title text-2xl font-bold sm:text-3xl">
-                    Ready to organize your garage?
-                  </motion.h2>
-                  <motion.p custom={1} variants={fadeIn} className="mx-auto mt-3 max-w-md text-muted-foreground">
-                    Join vehicle owners who track every service, mod, and document in one beautiful interface.
-                  </motion.p>
-                  <motion.div custom={2} variants={fadeUp} className="mt-6">
-                    <a href="/api/auth/google">
-                      <Button size="lg" className="bg-primary text-primary-foreground text-base px-8 py-6 rounded-2xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
-                        <svg className="mr-2 size-5" viewBox="0 0 24 24">
-                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
-                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                        </svg>
-                        Get started free
-                      </Button>
-                    </a>
-                  </motion.div>
-                </motion.div>
-              </AnimatedSection>
-            </div>
-          </section>
-        )}
-
         {/* Footer */}
         <footer className="relative z-10 border-t border-border/40 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-6xl items-center justify-between">
@@ -569,6 +501,12 @@ export default function Home() {
           </div>
         </footer>
       </div>
+
+      <AuthModal
+        open={authModal.open}
+        onOpenChange={(open) => setAuthModal((prev) => ({ ...prev, open }))}
+        mode={authModal.mode}
+      />
     </div>
   );
 }
