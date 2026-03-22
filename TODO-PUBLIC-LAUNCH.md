@@ -7,7 +7,7 @@ Generated from a full codebase review on 2026-03-15.
 
 ## Security
 
-### [ ] 1. Add auth middleware to notification routes
+### [x] 1. Add auth middleware to notification routes
 **Severity:** Critical
 **File:** `server/routes.ts:462-500`
 
@@ -101,7 +101,7 @@ The `PATCH /api/auth/profile` endpoint accepts any string for `currency` and `ti
 
 ## Legal / Compliance
 
-### [ ] 10. Add account deletion and data export
+### [x] 10. Add account deletion and data export
 **Severity:** High
 **Context:** India's DPDPA and EU's GDPR
 
@@ -111,7 +111,7 @@ The app stores personal data: Google profile info (name, email, picture), vehicl
 
 ---
 
-### [ ] 11. Add a privacy policy page
+### [x] 11. Add a privacy policy page
 **Severity:** High
 **Context:** Google OAuth requirement, DPDPA, GDPR
 
@@ -121,7 +121,7 @@ Google requires a linked privacy policy for apps using their OAuth API in produc
 
 ---
 
-### [ ] 12. Add footer links to Privacy Policy and Terms of Service
+### [x] 12. Add footer links to Privacy Policy and Terms of Service
 **Severity:** High
 **Context:** Legal compliance, user trust
 
