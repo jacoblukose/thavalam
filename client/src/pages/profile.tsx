@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Loader2, Save } from "lucide-react";
+import { ChevronLeft, Download, Loader2, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +15,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
-import { fetchCurrentUser, updateProfile } from "@/lib/api";
+import { fetchCurrentUser, updateProfile, downloadUserData, deleteAccount } from "@/lib/api";
 
 const currencies = [
   { value: "INR", label: "Indian Rupee (₹)" },
@@ -253,6 +253,70 @@ export default function Profile() {
                       Failed to save. Please try again.
                     </p>
                   )}
+                </div>
+
+                {/* Data & Privacy */}
+                <div className="rg-noise rounded-[28px] border border-border/70 bg-card/40 p-6 shadow-md backdrop-blur md:p-8">
+                  <div className="text-xs font-semibold text-muted-foreground">
+                    Data &amp; Privacy
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-foreground">Download your data</div>
+                        <div className="text-xs text-muted-foreground">
+                          Export all your data as a JSON file including vehicles, service records, fuel logs, and documents.
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={async () => {
+                          try {
+                            await downloadUserData();
+                          } catch {
+                            alert("Failed to download data. Please try again.");
+                          }
+                        }}
+                      >
+                        <Download className="mr-2 size-4" />
+                        Export
+                      </Button>
+                    </div>
+
+                    <div className="border-t border-border/70" />
+
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-destructive">Delete account</div>
+                        <div className="text-xs text-muted-foreground">
+                          Permanently delete your account and all associated data. This action cannot be undone.
+                        </div>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={async () => {
+                          const confirmed = window.confirm(
+                            "Are you sure you want to delete your account? All your vehicles, service records, fuel logs, and documents will be permanently deleted. This cannot be undone."
+                          );
+                          if (!confirmed) return;
+                          try {
+                            await deleteAccount();
+                            window.location.href = "/";
+                          } catch {
+                            alert("Failed to delete account. Please try again.");
+                          }
+                        }}
+                      >
+                        <Trash2 className="mr-2 size-4" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

@@ -324,6 +324,71 @@ export class DbStorage implements IStorage {
   async clearNotifications(userId: string): Promise<void> {
     await db.delete(notifications).where(eq(notifications.userId, userId));
   }
+
+  async getUserDataExport(userId: string) {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return null;
+
+    const ownedVehicles = await db.select().from(vehicles).where(eq(vehicles.userId, userId));
+    const vehicleIds = ownedVehicles.map((v) => v.id);
+
+    const allServiceRecords = vehicleIds.length > 0
+      ? await db.select().from(serviceRecords).where(inArray(serviceRecords.vehicleId, vehicleIds))
+      : [];
+    const allBuildNotes = vehicleIds.length > 0
+      ? await db.select().from(buildNotes).where(inArray(buildNotes.vehicleId, vehicleIds))
+      : [];
+    const allDocuments = vehicleIds.length > 0
+      ? await db.select().from(vehicleDocuments).where(inArray(vehicleDocuments.vehicleId, vehicleIds))
+      : [];
+    const allFuelLogs = vehicleIds.length > 0
+      ? await db.select().from(fuelLogs).where(inArray(fuelLogs.vehicleId, vehicleIds))
+      : [];
+    const allShares = vehicleIds.length > 0
+      ? await db.select().from(vehicleShares).where(inArray(vehicleShares.vehicleId, vehicleIds))
+      : [];
+    const allNotifications = await db.select().from(notifications).where(eq(notifications.userId, userId));
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        alias: user.alias,
+        avatarColor: user.avatarColor,
+        currency: user.currency,
+        timezone: user.timezone,
+        createdAt: user.createdAt,
+      },
+      vehicles: ownedVehicles,
+      serviceRecords: allServiceRecords,
+      buildNotes: allBuildNotes,
+      documents: allDocuments,
+      fuelLogs: allFuelLogs,
+      vehicleShares: allShares,
+      notifications: allNotifications,
+      exportedAt: new Date().toISOString(),
+    };
+  }
+
+  async deleteUserAccount(userId: string): Promise<void> {
+    const ownedVehicles = await db.select({ id: vehicles.id }).from(vehicles).where(eq(vehicles.userId, userId));
+    const vehicleIds = ownedVehicles.map((v) => v.id);
+
+    if (vehicleIds.length > 0) {
+      await db.delete(serviceRecords).where(inArray(serviceRecords.vehicleId, vehicleIds));
+      await db.delete(buildNotes).where(inArray(buildNotes.vehicleId, vehicleIds));
+      await db.delete(vehicleDocuments).where(inArray(vehicleDocuments.vehicleId, vehicleIds));
+      await db.delete(fuelLogs).where(inArray(fuelLogs.vehicleId, vehicleIds));
+      await db.delete(vehicleShares).where(inArray(vehicleShares.vehicleId, vehicleIds));
+    }
+
+    // Remove shares where this user was a shared-to user
+    await db.delete(vehicleShares).where(eq(vehicleShares.userId, userId));
+    await db.delete(notifications).where(eq(notifications.userId, userId));
+    await db.delete(vehicles).where(eq(vehicles.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
+  }
 }
 
 export const storage = new DbStorage();

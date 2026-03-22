@@ -7,6 +7,7 @@ import { db, pool } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { generateAlias, generateAvatarColor } from "./alias";
+import { storage } from "./storage";
 
 declare module "express-session" {
   interface SessionData {
@@ -199,6 +200,36 @@ export function setupAuth(app: Express) {
       avatarColor: updated.avatarColor,
       currency: updated.currency,
       timezone: updated.timezone,
+    });
+  });
+
+  app.get("/api/auth/data-export", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const data = await storage.getUserDataExport(req.user!.id);
+    if (!data) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.setHeader("Content-Disposition", `attachment; filename="pocket-garage-data-${Date.now()}.json"`);
+    res.setHeader("Content-Type", "application/json");
+    res.json(data);
+  });
+
+  app.delete("/api/auth/account", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const userId = req.user!.id;
+    await storage.deleteUserAccount(userId);
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Account deleted but logout failed" });
+      }
+      req.session.destroy(() => {
+        res.clearCookie("connect.sid");
+        res.json({ ok: true });
+      });
     });
   });
 

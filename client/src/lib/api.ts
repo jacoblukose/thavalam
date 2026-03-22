@@ -34,6 +34,23 @@ export async function logout(): Promise<void> {
   await fetch(`${API_BASE}/auth/logout`, { method: "POST" });
 }
 
+export async function downloadUserData(): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/data-export`);
+  if (!res.ok) throw new Error("Failed to download data");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `pocket-garage-data-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function deleteAccount(): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/account`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete account");
+}
+
 export async function fetchVehicles(): Promise<Vehicle[]> {
   const res = await fetch(`${API_BASE}/vehicles`);
   if (!res.ok) throw new Error("Failed to fetch vehicles");
