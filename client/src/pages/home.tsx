@@ -495,8 +495,9 @@ export default function Home() {
               <Logo className="size-4 text-muted-foreground" />
               <span>Pocket Garage</span>
             </div>
-            <div className="text-xs text-muted-foreground/60">
-              Built for enthusiasts.
+            <div className="flex items-center gap-4 text-xs text-muted-foreground/60">
+              <Link href="/privacy" className="hover:text-muted-foreground transition-colors">Privacy</Link>
+              <Link href="/terms" className="hover:text-muted-foreground transition-colors">Terms</Link>
             </div>
           </div>
         </footer>

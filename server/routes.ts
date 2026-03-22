@@ -50,6 +50,7 @@ export async function registerRoutes(
 
   // Non-vehicle API routes that also need auth
   app.use("/api/documents", requireAuth as RequestHandler);
+  app.use("/api/notifications", requireAuth as RequestHandler);
 
   // Vehicles
   app.get("/api/vehicles", async (req, res) => {

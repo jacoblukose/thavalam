@@ -51,7 +51,10 @@ export function AuthModal({
         </div>
 
         <div className="mt-3 text-center text-xs text-muted-foreground/60">
-          By continuing, you agree to our terms of service.
+          By signing in, you agree to our{" "}
+          <a href="/terms" className="underline underline-offset-2 hover:text-muted-foreground">Terms of Service</a>{" "}
+          and{" "}
+          <a href="/privacy" className="underline underline-offset-2 hover:text-muted-foreground">Privacy Policy</a>.
         </div>
       </DialogContent>
     </Dialog>

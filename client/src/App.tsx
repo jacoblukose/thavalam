@@ -9,6 +9,8 @@ import Home from "@/pages/home";
 
 import Garage from "@/pages/garage";
 import Profile from "@/pages/profile";
+import Privacy from "@/pages/privacy";
+import Terms from "@/pages/terms";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/garage" component={Garage} />
       <Route path="/profile" component={Profile} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
       <Route component={NotFound} />
     </Switch>
   );
