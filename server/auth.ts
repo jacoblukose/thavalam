@@ -149,8 +149,23 @@ export function setupAuth(app: Express) {
     passport.authenticate("google", {
       failureRedirect: "/?error=auth",
     }) as RequestHandler,
-    (_req, res) => {
-      res.redirect("/garage");
+    (req, res) => {
+      // Regenerate session after login to prevent session fixation
+      const user = req.user;
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Session regeneration failed:", err);
+          return res.redirect("/?error=auth");
+        }
+        // Re-attach user to new session
+        req.logIn(user!, (loginErr) => {
+          if (loginErr) {
+            console.error("Re-login after session regeneration failed:", loginErr);
+            return res.redirect("/?error=auth");
+          }
+          res.redirect("/garage");
+        });
+      });
     }
   );
 
@@ -172,14 +187,31 @@ export function setupAuth(app: Express) {
     }
   });
 
+  const VALID_CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "AUD", "CAD", "SGD", "JPY"];
+  const VALID_TIMEZONES = [
+    "Asia/Kolkata", "America/New_York", "America/Chicago", "America/Denver",
+    "America/Los_Angeles", "Europe/London", "Europe/Berlin", "Asia/Dubai",
+    "Asia/Singapore", "Asia/Tokyo", "Australia/Sydney", "Pacific/Auckland",
+  ];
+
   app.patch("/api/auth/profile", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     const { currency, timezone } = req.body;
     const updates: Record<string, string> = {};
-    if (currency && typeof currency === "string") updates.currency = currency;
-    if (timezone && typeof timezone === "string") updates.timezone = timezone;
+    if (currency && typeof currency === "string") {
+      if (!VALID_CURRENCIES.includes(currency)) {
+        return res.status(400).json({ error: "Invalid currency" });
+      }
+      updates.currency = currency;
+    }
+    if (timezone && typeof timezone === "string") {
+      if (!VALID_TIMEZONES.includes(timezone)) {
+        return res.status(400).json({ error: "Invalid timezone" });
+      }
+      updates.timezone = timezone;
+    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });

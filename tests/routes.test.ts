@@ -29,6 +29,11 @@ vi.mock("../server/storage", () => ({
     shareVehicle: vi.fn(),
     unshareVehicle: vi.fn(),
     findUserByEmail: vi.fn(),
+    createNotification: vi.fn(),
+    getNotifications: vi.fn(),
+    markNotificationRead: vi.fn(),
+    markAllNotificationsRead: vi.fn(),
+    clearNotifications: vi.fn(),
   },
 }));
 
@@ -109,7 +114,7 @@ describe("Vehicle routes", () => {
   });
 
   it("POST /api/vehicles creates a vehicle with valid data", async () => {
-    const newVehicle = { id: "v2", nickname: "Car", model: "VW Taigun", year: "2022" };
+    const newVehicle = { id: "v2", nickname: "Car", model: "VW Taigun", year: "2022", fuelType: "petrol" };
     mockStorage.createVehicle.mockResolvedValue(newVehicle);
 
     const app = buildApp();
@@ -117,6 +122,7 @@ describe("Vehicle routes", () => {
       nickname: "Car",
       model: "VW Taigun",
       year: "2022",
+      fuelType: "petrol",
     });
     expect(res.status).toBe(201);
     expect(res.body).toEqual(newVehicle);
@@ -133,6 +139,7 @@ describe("Vehicle routes", () => {
 
   it("PATCH /api/vehicles/:id updates a vehicle", async () => {
     const updated = { id: "v1", nickname: "Updated", model: "Honda", year: "2021" };
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.updateVehicle.mockResolvedValue(updated);
 
     const app = buildApp();
@@ -143,14 +150,14 @@ describe("Vehicle routes", () => {
     expect(res.body.nickname).toBe("Updated");
   });
 
-  it("PATCH /api/vehicles/:id returns 404 for unknown vehicle", async () => {
-    mockStorage.updateVehicle.mockResolvedValue(undefined);
+  it("PATCH /api/vehicles/:id returns 403 for non-owner", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
 
     const app = buildApp();
     const res = await request(app, "PATCH", "/api/vehicles/unknown", {
       nickname: "Updated",
     });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 
   it("DELETE /api/vehicles/:id requires ownership", async () => {
@@ -197,7 +204,7 @@ describe("Service record routes", () => {
   });
 
   it("PATCH /api/vehicles/:id/services/:svcId passes vehicleId to storage", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.updateServiceRecord.mockResolvedValue({ id: "s1", title: "Updated" });
 
     const app = buildApp();
@@ -210,7 +217,7 @@ describe("Service record routes", () => {
   });
 
   it("PATCH /api/vehicles/:id/services/:svcId returns 404 for unknown record", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.updateServiceRecord.mockResolvedValue(undefined);
 
     const app = buildApp();
@@ -221,7 +228,7 @@ describe("Service record routes", () => {
   });
 
   it("DELETE /api/vehicles/:id/services/:svcId passes vehicleId to storage", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.deleteServiceRecord.mockResolvedValue(true);
 
     const app = buildApp();
@@ -231,7 +238,7 @@ describe("Service record routes", () => {
   });
 
   it("DELETE /api/vehicles/:id/services/:svcId returns 404 when record not in vehicle", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.deleteServiceRecord.mockResolvedValue(false);
 
     const app = buildApp();
@@ -239,12 +246,12 @@ describe("Service record routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("DELETE /api/vehicles/:id/services/:svcId returns 404 for unknown vehicle", async () => {
-    mockStorage.getVehicle.mockResolvedValue(undefined);
+  it("DELETE /api/vehicles/:id/services/:svcId returns 403 for non-owner", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
 
     const app = buildApp();
     const res = await request(app, "DELETE", "/api/vehicles/v1/services/s1");
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 });
 
@@ -272,7 +279,7 @@ describe("Build notes routes", () => {
   });
 
   it("PUT /api/vehicles/:id/notes rejects non-array body", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
 
     const app = buildApp();
     const res = await request(app, "PUT", "/api/vehicles/v1/notes", { key: "Engine" });
@@ -281,7 +288,7 @@ describe("Build notes routes", () => {
   });
 
   it("PUT /api/vehicles/:id/notes rejects invalid note objects", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
 
     const app = buildApp();
     const res = await request(app, "PUT", "/api/vehicles/v1/notes", [
@@ -291,7 +298,7 @@ describe("Build notes routes", () => {
   });
 
   it("PUT /api/vehicles/:id/notes rejects notes with missing fields", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
 
     const app = buildApp();
     const res = await request(app, "PUT", "/api/vehicles/v1/notes", [
@@ -301,7 +308,7 @@ describe("Build notes routes", () => {
   });
 
   it("PUT /api/vehicles/:id/notes upserts valid notes", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     const notes = [{ key: "Engine", value: "Tuned" }];
     mockStorage.upsertBuildNotes.mockResolvedValue(notes);
 
@@ -353,16 +360,16 @@ describe("Document routes", () => {
     expect(res.body).toHaveLength(2);
   });
 
-  it("DELETE /api/vehicles/:id/documents/:docId returns 404 for unknown vehicle", async () => {
-    mockStorage.getVehicle.mockResolvedValue(undefined);
+  it("DELETE /api/vehicles/:id/documents/:docId returns 403 for non-owner", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
 
     const app = buildApp();
     const res = await request(app, "DELETE", "/api/vehicles/v1/documents/d1");
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 
   it("DELETE /api/vehicles/:id/documents/:docId returns 404 for unknown doc", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.getDocuments.mockResolvedValue([]);
 
     const app = buildApp();
@@ -371,7 +378,7 @@ describe("Document routes", () => {
   });
 
   it("DELETE /api/vehicles/:id/documents/:docId deletes a doc", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.getDocuments.mockResolvedValue([{ id: "d1", type: "puc", fileUrl: null }]);
     mockStorage.deleteDocument.mockResolvedValue(undefined);
 
@@ -411,6 +418,8 @@ describe("Sharing routes", () => {
     mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.findUserByEmail.mockResolvedValue(targetUser);
     mockStorage.shareVehicle.mockResolvedValue({ vehicleId: "v1", userId: "user-2" });
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1", nickname: "Bike", model: "Honda" });
+    mockStorage.createNotification.mockResolvedValue({});
 
     const app = buildApp();
     const res = await request(app, "POST", "/api/vehicles/v1/shares", {
@@ -458,7 +467,7 @@ describe("Fuel log routes", () => {
   });
 
   it("POST /api/vehicles/:id/fuel-logs creates a log", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     const newLog = { id: "f1", date: "2026-03-01", amount: "5.0", cost: 50000, odoKm: 37000, fullTank: true };
     mockStorage.createFuelLog.mockResolvedValue(newLog);
 
@@ -475,7 +484,7 @@ describe("Fuel log routes", () => {
   });
 
   it("POST /api/vehicles/:id/fuel-logs rejects invalid data", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
 
     const app = buildApp();
     const res = await request(app, "POST", "/api/vehicles/v1/fuel-logs", {
@@ -486,7 +495,7 @@ describe("Fuel log routes", () => {
   });
 
   it("PATCH /api/vehicles/:id/fuel-logs/:logId updates a log", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.updateFuelLog.mockResolvedValue({ id: "f1", cost: 55000 });
 
     const app = buildApp();
@@ -498,7 +507,7 @@ describe("Fuel log routes", () => {
   });
 
   it("PATCH /api/vehicles/:id/fuel-logs/:logId returns 404 for unknown log", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.updateFuelLog.mockResolvedValue(undefined);
 
     const app = buildApp();
@@ -509,7 +518,7 @@ describe("Fuel log routes", () => {
   });
 
   it("DELETE /api/vehicles/:id/fuel-logs/:logId deletes a log", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.deleteFuelLog.mockResolvedValue(true);
 
     const app = buildApp();
@@ -519,7 +528,7 @@ describe("Fuel log routes", () => {
   });
 
   it("DELETE /api/vehicles/:id/fuel-logs/:logId returns 404 when not found", async () => {
-    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.isVehicleOwner.mockResolvedValue(true);
     mockStorage.deleteFuelLog.mockResolvedValue(false);
 
     const app = buildApp();
@@ -531,5 +540,64 @@ describe("Fuel log routes", () => {
     const app = buildApp(false);
     const res = await request(app, "GET", "/api/vehicles/v1/fuel-logs");
     expect(res.status).toBe(401);
+  });
+
+  it("POST /api/vehicles/:id/fuel-logs returns 403 for non-owner", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
+
+    const app = buildApp();
+    const res = await request(app, "POST", "/api/vehicles/v1/fuel-logs", {
+      date: "2026-03-01", amount: "5.0", cost: 50000, odoKm: 37000, fullTank: true,
+    });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("Shared user read-only enforcement", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shared user can read service records", async () => {
+    mockStorage.getVehicle.mockResolvedValue({ id: "v1" });
+    mockStorage.getServiceRecords.mockResolvedValue([]);
+
+    const app = buildApp();
+    const res = await request(app, "GET", "/api/vehicles/v1/services");
+    expect(res.status).toBe(200);
+  });
+
+  it("shared user cannot create service records", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
+
+    const app = buildApp();
+    const res = await request(app, "POST", "/api/vehicles/v1/services", {
+      vehicleId: "v1", title: "Oil change", date: "2026-01-01", odometerKm: 5000, workshop: "Shop",
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("shared user cannot delete documents", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
+
+    const app = buildApp();
+    const res = await request(app, "DELETE", "/api/vehicles/v1/documents/d1");
+    expect(res.status).toBe(403);
+  });
+
+  it("shared user cannot update build notes", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
+
+    const app = buildApp();
+    const res = await request(app, "PUT", "/api/vehicles/v1/notes", [{ key: "Engine", value: "Tuned" }]);
+    expect(res.status).toBe(403);
+  });
+
+  it("shared user cannot update vehicle", async () => {
+    mockStorage.isVehicleOwner.mockResolvedValue(false);
+
+    const app = buildApp();
+    const res = await request(app, "PATCH", "/api/vehicles/v1", { nickname: "Hacked" });
+    expect(res.status).toBe(403);
   });
 });

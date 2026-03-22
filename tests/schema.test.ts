@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { insertVehicleSchema, insertServiceRecordSchema, insertVehicleDocumentSchema } from "../shared/schema";
+import { insertVehicleSchema, insertServiceRecordSchema, insertVehicleDocumentSchema, insertFuelLogSchema } from "../shared/schema";
 
 describe("insertVehicleSchema", () => {
   it("accepts a minimal vehicle with only required fields", () => {
@@ -107,6 +107,69 @@ describe("insertVehicleDocumentSchema", () => {
     const result = insertVehicleDocumentSchema.safeParse({
       vehicleId: "some-uuid",
       type: "puc",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects invalid document type", () => {
+    const result = insertVehicleDocumentSchema.safeParse({
+      vehicleId: "some-uuid",
+      type: "malicious_type",
+      expiryDate: "2026-06-01",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("Input length validation", () => {
+  it("rejects vehicle nickname over 100 chars", () => {
+    const result = insertVehicleSchema.safeParse({
+      nickname: "A".repeat(101),
+      model: "Honda",
+      year: "2021",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects invalid fuelType", () => {
+    const result = insertVehicleSchema.safeParse({
+      nickname: "Bike",
+      model: "Honda",
+      year: "2021",
+      fuelType: "nuclear",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects invalid vehicle status", () => {
+    const result = insertVehicleSchema.safeParse({
+      nickname: "Bike",
+      model: "Honda",
+      year: "2021",
+      status: "hacked",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects service record title over 200 chars", () => {
+    const result = insertServiceRecordSchema.safeParse({
+      vehicleId: "v1",
+      title: "A".repeat(201),
+      date: "2026-01-01",
+      odometerKm: 5000,
+      workshop: "Shop",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects fuel log notes over 2000 chars", () => {
+    const result = insertFuelLogSchema.safeParse({
+      vehicleId: "v1",
+      date: "2026-01-01",
+      amount: "5.0",
+      cost: 50000,
+      odoKm: 37000,
+      notes: "A".repeat(2001),
     });
     expect(result.success).toBe(false);
   });

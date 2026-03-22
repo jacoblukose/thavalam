@@ -39,7 +39,14 @@ export const vehicles = pgTable("vehicles", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertVehicleSchema = createInsertSchema(vehicles).omit({
+export const insertVehicleSchema = createInsertSchema(vehicles, {
+  nickname: z.string().min(1).max(100),
+  model: z.string().min(1).max(100),
+  year: z.string().min(1).max(10),
+  location: z.string().max(200).optional().default(""),
+  status: z.enum(["owned", "sold", "scrapped"]).optional().default("owned"),
+  fuelType: z.enum(["petrol", "diesel", "electric", "cng", "hybrid"]).optional().default("petrol"),
+}).omit({
   id: true,
   userId: true,
   createdAt: true,
@@ -60,7 +67,11 @@ export const serviceRecords = pgTable("service_records", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertServiceRecordSchema = createInsertSchema(serviceRecords).omit({
+export const insertServiceRecordSchema = createInsertSchema(serviceRecords, {
+  title: z.string().min(1).max(200),
+  workshop: z.string().max(200),
+  date: z.string().max(20),
+}).omit({
   id: true,
   createdAt: true,
 });
@@ -108,7 +119,14 @@ export const vehicleDocuments = pgTable("vehicle_documents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertVehicleDocumentSchema = createInsertSchema(vehicleDocuments).omit({
+export const insertVehicleDocumentSchema = createInsertSchema(vehicleDocuments, {
+  type: z.enum(["insurance", "puc"]),
+  label: z.string().max(200).nullable().optional(),
+  expiryDate: z.string().max(20),
+  notes: z.string().max(2000).nullable().optional(),
+  fileName: z.string().max(500).nullable().optional(),
+  fileUrl: z.string().max(2000).nullable().optional(),
+}).omit({
   id: true,
   createdAt: true,
 });
@@ -129,7 +147,11 @@ export const fuelLogs = pgTable("fuel_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertFuelLogSchema = createInsertSchema(fuelLogs).omit({
+export const insertFuelLogSchema = createInsertSchema(fuelLogs, {
+  date: z.string().max(20),
+  station: z.string().max(200).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+}).omit({
   id: true,
   createdAt: true,
 });

@@ -6,6 +6,8 @@ import { storage } from "./storage";
 import { insertVehicleSchema, insertServiceRecordSchema, insertVehicleDocumentSchema, insertFuelLogSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { uploadToSupabase, deleteFromSupabase } from "./supabase-storage";
+import crypto from "crypto";
+import path from "path";
 
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
@@ -13,6 +15,29 @@ const ALLOWED_MIME_TYPES = [
   "image/png",
   "image/webp",
 ];
+
+// Magic bytes for file type validation
+const MAGIC_BYTES: Record<string, number[][]> = {
+  "application/pdf": [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  "image/jpeg": [[0xFF, 0xD8, 0xFF]],
+  "image/png": [[0x89, 0x50, 0x4E, 0x47]],
+  "image/webp": [[0x52, 0x49, 0x46, 0x46]], // RIFF
+};
+
+function validateMagicBytes(buffer: Buffer, mimetype: string): boolean {
+  const signatures = MAGIC_BYTES[mimetype];
+  if (!signatures) return false;
+  return signatures.some((sig) =>
+    sig.every((byte, i) => buffer[i] === byte)
+  );
+}
+
+function sanitizeFilename(filename: string): string {
+  // Extract extension, generate random name
+  const ext = path.extname(filename).toLowerCase().replace(/[^a-z0-9.]/g, "");
+  const safe = crypto.randomBytes(8).toString("hex");
+  return `${safe}${ext}`;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -92,6 +117,10 @@ export async function registerRoutes(
 
   app.patch("/api/vehicles/:id", async (req, res) => {
     try {
+      const isOwner = await storage.isVehicleOwner(req.params.id, req.user!.id);
+      if (!isOwner) {
+        return res.status(403).json({ error: "Only the owner can update a vehicle" });
+      }
       const result = insertVehicleSchema.partial().safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: fromError(result.error).toString() });
@@ -138,9 +167,8 @@ export async function registerRoutes(
 
   app.post("/api/vehicles/:vehicleId/services", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can add service records" });
       }
       const result = insertServiceRecordSchema.safeParse({
         ...req.body,
@@ -159,9 +187,8 @@ export async function registerRoutes(
 
   app.patch("/api/vehicles/:vehicleId/services/:serviceId", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can update service records" });
       }
       const result = insertServiceRecordSchema.partial().safeParse(req.body);
       if (!result.success) {
@@ -180,9 +207,8 @@ export async function registerRoutes(
 
   app.delete("/api/vehicles/:vehicleId/services/:serviceId", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can delete service records" });
       }
       const deleted = await storage.deleteServiceRecord(req.params.serviceId, req.params.vehicleId);
       if (!deleted) {
@@ -212,9 +238,8 @@ export async function registerRoutes(
 
   app.put("/api/vehicles/:vehicleId/notes", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can update build notes" });
       }
       if (!Array.isArray(req.body)) {
         return res.status(400).json({ error: "Expected array of notes" });
@@ -321,19 +346,23 @@ export async function registerRoutes(
 
   app.post("/api/vehicles/:vehicleId/documents", upload.single("file") as any, async (req: any, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can add documents" });
       }
 
       let fileUrl: string | null = null;
       let fileName: string | null = null;
 
       if (req.file) {
+        // Validate file content matches declared MIME type
+        if (!validateMagicBytes(req.file.buffer, req.file.mimetype)) {
+          return res.status(400).json({ error: "File content does not match declared type" });
+        }
         fileName = req.file.originalname;
+        const safeName = sanitizeFilename(fileName);
         fileUrl = await uploadToSupabase(
           req.file.buffer,
-          `${req.user!.id}/${req.params.vehicleId}/${Date.now()}-${fileName}`,
+          `${req.user!.id}/${req.params.vehicleId}/${Date.now()}-${safeName}`,
           req.file.mimetype,
         );
       }
@@ -365,9 +394,8 @@ export async function registerRoutes(
 
   app.delete("/api/vehicles/:vehicleId/documents/:docId", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can delete documents" });
       }
       const docs = await storage.getDocuments(req.params.vehicleId);
       const doc = docs.find(d => d.id === req.params.docId);
@@ -402,9 +430,8 @@ export async function registerRoutes(
 
   app.post("/api/vehicles/:vehicleId/fuel-logs", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can add fuel logs" });
       }
       const result = insertFuelLogSchema.safeParse({
         ...req.body,
@@ -423,9 +450,8 @@ export async function registerRoutes(
 
   app.patch("/api/vehicles/:vehicleId/fuel-logs/:logId", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can update fuel logs" });
       }
       const result = insertFuelLogSchema.partial().safeParse(req.body);
       if (!result.success) {
@@ -444,9 +470,8 @@ export async function registerRoutes(
 
   app.delete("/api/vehicles/:vehicleId/fuel-logs/:logId", async (req, res) => {
     try {
-      const vehicle = await storage.getVehicle(req.params.vehicleId, req.user!.id);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
+      if (!(await storage.isVehicleOwner(req.params.vehicleId, req.user!.id))) {
+        return res.status(403).json({ error: "Only the owner can delete fuel logs" });
       }
       const deleted = await storage.deleteFuelLog(req.params.logId, req.params.vehicleId);
       if (!deleted) {
